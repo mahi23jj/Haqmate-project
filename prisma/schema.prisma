@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  location      String?
+  phoneNumber   String?  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  cart          Cart[]
+  order         Order[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String     @id @default(uuid())
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String      @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String     @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+model TeffType {
+  id          String             @id @default(uuid()) 
+  name        String              @unique
+  products    TeffProduct[]
+}
+model TeffQuality {
+  id          String            @id @default(uuid()) 
+  name        String             @unique // "Level 1", "Level 2"
+  products    TeffProduct[]
+}
+
+model Image {
+  id          String         @id @default(uuid()) 
+  url         String
+  productId   String
+  product     TeffProduct @relation(fields: [productId], references: [id])
+}
+
+model Packaging {
+  id      String @id @default(uuid())
+  sizeKg  Int    @unique
+  carts   Cart[]
+  orderItems OrderItem[]
+}
+
+
+model TeffProduct {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  pricePerKg    Float
+  teffTypeId    String
+  qualityId     String?
+  teffType      TeffType      @relation(fields: [teffTypeId], references: [id])
+  quality       TeffQuality?  @relation(fields: [qualityId], references: [id])
+  images        Image[]
+  cartItems     Cart[]
+  orderItems    OrderItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Cart {
+  id             String       @id @default(uuid())
+  userId         String
+  productId      String
+  quantity       Int           @default(1)
+  packagingId    String
+  packaging      Packaging @relation(fields: [packagingId], references: [id])        // e.g. 5, 10, 15 (kg)
+  product        TeffProduct   @relation(fields: [productId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([userId, productId, packagingId]) // 👈 prevents duplicates for same size
+}
+
+// enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
+enum Status {
+  pending
+  paid
+  delivered
+  completed
+  cancelled
+  refunded
+}
+
+model Order {
+  id           String       @id @default(uuid())
+  userId       String
+  status       Status       @default(pending)
+  totalAmount  Float
+  location     String
+  phoneNumber  String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id])
+  items        OrderItem[]  // One order can have many order items
+}
+
+model OrderItem {
+  id           String        @id @default(uuid())
+  orderId      String
+  productId    String
+  packagingId  String
+  quantity     Int
+  price        Float
+  
+  order        Order         @relation(fields: [orderId], references: [id])
+  product      TeffProduct   @relation(fields: [productId], references: [id])
+  packaging    Packaging     @relation(fields: [packagingId], references: [id])
+}
+
+model feedback {
+  id          String     @id @default(uuid())
+  userId      String
+  productId   String
+
+  packagingsize  String
+  rating      Int
+  message     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+//for feedback i want is after a user order completed it will send notification for user 
