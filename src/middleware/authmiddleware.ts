@@ -16,6 +16,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // get user info and attach to req
     const user = session.user.id;
 
+
+     
+   
+
     req.user = user;
 
     next();

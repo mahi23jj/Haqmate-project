@@ -170,18 +170,43 @@ model OrderItem {
   packaging    Packaging     @relation(fields: [packagingId], references: [id])
 }
 
-model feedback {
-  id          String     @id @default(uuid())
-  userId      String
-  productId   String
+// model feedback {
+//   id          String     @id @default(uuid())
+//   userId      String
+//   productId   String
 
-  packagingsize  String
-  rating      Int
-  message     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+//   packagingsize  String
+//   rating      Int
+//   message     String
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
 
-  user        User      @relation(fields: [userId], references: [id])
-}
+//   user        User      @relation(fields: [userId], references: [id])
+// }
 
 //for feedback i want is after a user order completed it will send notification for user 
+
+
+// payment model can be added later when integrating payment gateway
+
+ /* model Payment_initent {
+  id            String     @id @default(uuid())
+  orderId       String
+  amount        Float
+  currency      String
+  status        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order         Order     @relation(fields: [orderId], references: [id])  
+  
+}
+
+// indmpotency key
+model indempotencyKey {
+  id            String     @id @default(uuid())
+  key           String     @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+} */

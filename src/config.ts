@@ -8,6 +8,13 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL ?? '',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
   isdev : process.env.NODE_ENV !== 'production',
+  baseUrl: process.env.baseurl, // exampleoce
+  fabricAppId: process.env.fabricAppID,
+  merchantAppId: process.env.merchantAppId,
+  merchantCode: process.env.merchantCode,
+  appSecret: process.env.appSecret,
+  PrivateKey: process.env.PrivateKey || '',
+
 };
 
 if (!config.databaseUrl) {
