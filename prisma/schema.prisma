@@ -123,20 +123,7 @@ model TeffProduct {
   updatedAt     DateTime      @updatedAt
 }
 
-model Cart {
-  id             String       @id @default(uuid())
-  userId         String
-  productId      String
-  quantity       Int           @default(1)
-  packagingId    String
-  packaging      Packaging @relation(fields: [packagingId], references: [id])        // e.g. 5, 10, 15 (kg)
-  product        TeffProduct   @relation(fields: [productId], references: [id])
-  user           User          @relation(fields: [userId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
 
-  @@unique([userId, productId, packagingId]) // 👈 prevents duplicates for same size
-}
 
 // enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
 enum Status {
@@ -166,8 +153,8 @@ model Order {
   feedback        feedback[]
 
 
-  @@unique([deliveryDate])
-  @@unique([status])
+  @@index([deliveryDate])
+  @@index([status])
 }
 
 model OrderItem {
@@ -181,6 +168,8 @@ model OrderItem {
   order        Order         @relation(fields: [orderId], references: [id])
   product      TeffProduct   @relation(fields: [productId], references: [id])
   packaging    Packaging     @relation(fields: [packagingId], references: [id])
+
+  @@index([orderId])
 }
 
 enum feedback_status {
@@ -205,7 +194,7 @@ model feedback_request {
   order        Order         @relation(fields: [orderId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
 
-   @@unique([status, createdAt])
+   @@index([status, createdAt])
 }
 
 
@@ -221,8 +210,38 @@ model feedback {
 
   user        User      @relation(fields: [userId], references: [id])
   order       Order     @relation(fields: [orderId], references: [id])
+  feedbackanalytics FeedbackAnalytics[]
 
-  @@unique([orderId])
+  @@index([orderId])
+}
+
+
+model FeedbackAnalytics {
+  id          String   @id @default(uuid())
+  teffTypeId  String
+  qualityId   String?
+  packagingId String?
+  feedbackId  String
+  rating      Int
+
+  feedback     feedback @relation(fields: [feedbackId], references: [id])
+  @@index([teffTypeId, qualityId, packagingId])
+}
+
+
+model Cart {
+  id             String       @id @default(uuid())
+  userId         String
+  productId      String
+  quantity       Int           @default(1)
+  packagingId    String
+  packaging      Packaging @relation(fields: [packagingId], references: [id])        // e.g. 5, 10, 15 (kg)
+  product        TeffProduct   @relation(fields: [productId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([userId, productId, packagingId]) // 👈 prevents duplicates for same size
 }
 
 //for feedback i want is after a user order completed it will send notification for user 

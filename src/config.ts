@@ -14,7 +14,8 @@ export const config = {
   merchantCode: process.env.merchantCode,
   appSecret: process.env.appSecret,
   PrivateKey: process.env.PrivateKey || '',
-
+  GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
+  
 };
 
 if (!config.databaseUrl) {

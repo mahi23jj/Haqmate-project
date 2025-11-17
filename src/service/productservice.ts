@@ -99,67 +99,65 @@ export class ProductServiceImpl implements ProductService {
         }
     }
 
-    async createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+
+
+    async createProduct(
+        data: Omit<Product, "id" | "createdAt" | "updatedAt">
+    ): Promise<void> {
         try {
-
-            let newtype = await prisma.teffType.findFirst({
-                where: { name: data.teffType },
-            });
-
-            if (!newtype) {
-                newtype = await prisma.teffType.create({
-                    data: { name: data.teffType },
+            await prisma.$transaction(async (tx) => {
+                // 1️⃣ Find or create TeffType
+                let newtype = await tx.teffType.findFirst({
+                    where: { name: data.teffType },
                 });
-            }
 
-            const newquality = data.quality ? await prisma.teffQuality.create({
-                data: {
-                    name: data.quality
+                if (!newtype) {
+                    newtype = await tx.teffType.create({
+                        data: { name: data.teffType },
+                    });
                 }
-            }) : null;
 
-            const productData: any = {
-                name: data.name,
-                description: data.description,
-                pricePerKg: data.price,
-                teffType: {
-                    connect: { id: newtype.id },
-                },
-            };
-            if (newquality) {
-                productData.quality = {
-                    connect: { id: newquality.id },
+                // 2️⃣ Create TeffQuality if provided
+                const newquality = data.quality
+                    ? await tx.teffQuality.create({
+                        data: { name: data.quality },
+                    })
+                    : null;
+
+                // 3️⃣ Prepare product data
+                const productData: any = {
+                    name: data.name,
+                    description: data.description,
+                    pricePerKg: data.price,
+                    teffType: { connect: { id: newtype.id } },
                 };
-            }
+                if (newquality) {
+                    productData.quality = { connect: { id: newquality.id } };
+                }
 
-            const newProd = await prisma.teffProduct.create({
-                data: productData,
-                include: {
-                    teffType: true,
-                    quality: true,
-                    images: true,
-                },
-            });
-
-            if (data.images && data.images.length > 0) {
-                await prisma.image.createMany({
-                    data: data.images.map((url) => ({
-                        url,
-                        productId: newProd.id, // ✅ link image to the created product
-                    })),
+                // 4️⃣ Create product
+                const newProd = await tx.teffProduct.create({
+                    data: productData,
+                    include: { teffType: true, quality: true, images: true },
                 });
-            }
 
-            if (!newProd) {
-                throw new Error('Product creation failed');
-            } else {
-                console.log('✅ Product created successfully:', newProd);
-            }
+                // 5️⃣ Create images if provided
+                if (data.images && data.images.length > 0) {
+                    await tx.image.createMany({
+                        data: data.images.map((url) => ({
+                            url,
+                            productId: newProd.id,
+                        })),
+                    });
+                }
 
+                console.log("✅ Product created successfully:", newProd);
+            });
         } catch (error) {
-            console.error('❌ Error creating product:', error);
-            throw new Error('Failed to create product');
+            console.error("❌ Error creating product:", error);
+            throw new Error("Failed to create product");
         }
     }
+
 
 }
