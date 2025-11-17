@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
  // replace with actual import path
-import pmlib from "./";
+// import pmlib from "";
 import { config } from "../config.js";
 
 
@@ -13,7 +13,6 @@ export function createTimeStamp(): string {
 export function createNonceStr(length = 16): string {
   return crypto.randomBytes(length).toString("hex");
 }
-
 
 // Fields not participating in signature
 const excludeFields = [
@@ -63,27 +62,54 @@ export function signRequestObject(requestObject: Record<string, any>): string {
 
   console.log("signOriginStr:", signOriginStr);
 
+  const signature = signString(signOriginStr, config.PrivateKey);
+console.log("signature:",signature); // <- this is the actual signature
+
+
   // Sign the string using RSA-SHA256
-  return signString(signOriginStr, config.PrivateKey);
+  return signature;
 }
+
+// /**
+//  * Sign the given string using SHA256withRSA and return base64
+//  * @param text The string to sign
+//  * @param privateKey Your RSA private key
+//  */
+// function signString(text: string, privateKey: string): string {
+//   const sha256withrsa = new pmlib.rs.KJUR.crypto.Signature({
+//     alg: "SHA256withRSAandMGF1",
+//   });
+
+//   sha256withrsa.init(privateKey);
+//   sha256withrsa.updateString(text);
+
+//   const sign = pmlib.rs.hextob64(sha256withrsa.sign());
+//   return sign;
+// }
 
 /**
  * Sign the given string using SHA256withRSA and return base64
  * @param text The string to sign
- * @param privateKey Your RSA private key
+ * @param privateKey Your RSA private key in PEM format
  */
-function signString(text: string, privateKey: string): string {
-  const sha256withrsa = new pmlib.rs.KJUR.crypto.Signature({
-    alg: "SHA256withRSAandMGF1",
-  });
+export function signString(text: string, privateKey: string): string {
+  // Create a signer object using SHA256
+  const signer = crypto.createSign("RSA-SHA256");
 
-  sha256withrsa.init(privateKey);
-  sha256withrsa.updateString(text);
+  //  console.log("sign:", signer);
 
-  const sign = pmlib.rs.hextob64(sha256withrsa.sign());
-  return sign;
+  // Update the signer with the string to sign
+  signer.update(text);
+  signer.end();
+
+  //  console.log("sign2:", signer);
+
+  // Sign using the private key and output as base64
+  const signature = signer.sign(privateKey, "base64");
+
+  //  console.log("Signature:", signature);
+  return signature;
 }
-
 
 
 // export function signRequestObject(obj: Record<string, any>): string {

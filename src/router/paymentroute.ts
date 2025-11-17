@@ -163,6 +163,9 @@ function createRawRequest(prepayId: string) {
     timestamp: tools.createTimeStamp(),
   };
   const sign = tools.signRequestObject(map);
+
+  console.log("raw request", sign);
+  
   return {
     ...map,
     sign,
