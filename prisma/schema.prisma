@@ -27,6 +27,11 @@ model User {
   accounts      Account[]
   cart          Cart[]
   order         Order[]
+  feedback_request   feedback_request[]
+  feedback        feedback[]
+  
+
+
 
   @@unique([email])
   @@map("user")
@@ -149,12 +154,20 @@ model Order {
   status       Status       @default(pending)
   totalAmount  Float
   location     String
-  phoneNumber  String
+  phoneNumber  String    
+  // optional: can be set when order is delivered canbe null initially
+  deliveryDate DateTime?      
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   user         User         @relation(fields: [userId], references: [id])
-  items        OrderItem[]  // One order can have many order items
+  items        OrderItem[]  // One order can have many order item
+  feedback_request   feedback_request[]
+  feedback        feedback[]
+
+
+  @@unique([deliveryDate])
+  @@unique([status])
 }
 
 model OrderItem {
@@ -170,19 +183,47 @@ model OrderItem {
   packaging    Packaging     @relation(fields: [packagingId], references: [id])
 }
 
-// model feedback {
-//   id          String     @id @default(uuid())
-//   userId      String
-//   productId   String
+enum feedback_status {
+  pending
+  notified
+  completed
+  cancelled
+}
 
-//   packagingsize  String
-//   rating      Int
-//   message     String
-//   createdAt   DateTime  @default(now())
-//   updatedAt   DateTime  @updatedAt
+model feedback_request {
+  id           String        @id @default(uuid())
+  orderId      String        @unique
+  userId       String
+  status       feedback_status @default(pending)
+  feedback_submitted     Boolean   @default(false)
+  skip_count    Int      @default(0)
+  price        Float
+  notifiedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  order        Order         @relation(fields: [orderId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
 
-//   user        User      @relation(fields: [userId], references: [id])
-// }
+   @@unique([status, createdAt])
+}
+
+
+model feedback {
+  id          String     @id @default(uuid())
+  userId      String
+  orderId      String
+  rating      Int?    
+  message     String?
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id])
+  order       Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([orderId])
+}
 
 //for feedback i want is after a user order completed it will send notification for user 
 
