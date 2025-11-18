@@ -18,7 +18,9 @@ router.post("/create", async (req: Request, res: Response, next: NextFunction) =
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        const { items, shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
+        const { productId , packagingsize , quantity,  shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
+
+        const items = { productId, packagingsize, quantity };
 
         const newOrder = await orders.createOrder(userId, items, shippinglocation, phoneNumber, phoneChange, locationChange);
         res.status(201).json(newOrder);
@@ -68,5 +70,4 @@ router.get("/average",orderMiddleware , async (req: Request, res: Response) => {
     
 })
 
-
-export default router;
+export { router as OrderRouter };

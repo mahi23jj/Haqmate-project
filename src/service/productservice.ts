@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../errors/apperror.js';
+import type { promises } from 'dns';
 const prisma = new PrismaClient();
 
 
@@ -18,7 +19,7 @@ export interface Product {
 export interface ProductService {
     getAllProducts(): Promise<Product[]>;
     getProductById(id: string): Promise<Product | null>;
-    createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): void;
+    createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): any;
     //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
     //   deleteProduct(id: number): Promise<boolean>;
 }
@@ -99,65 +100,78 @@ export class ProductServiceImpl implements ProductService {
         }
     }
 
+async createProduct(
+  data: Omit<Product, "id" | "createdAt" | "updatedAt">
+) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+
+      // 1️⃣ Find or create TeffType
+      let newtype = await tx.teffType.upsert({
+          where: { name: data.teffType },
+        update : { name: data.teffType },
+        create: { name: data.teffType },
+      }
+      )
+      
+    /*   findFirst({
+        where: { name: data.teffType },
+      }); */
+
+    //   if (!newtype) {
+    //     newtype = await tx.teffType.create({
+    //       data: { name: data.teffType },
+    //     });
+    //   }
+
+      // 2️⃣ Create TeffQuality if provided
+      let newquality = null;
+      if (data.quality) {
+        newquality = await tx.teffQuality.create({
+          data: { name: data.quality },
+        });
+      }
+
+      // 3️⃣ Prepare product data
+      const productData: any = {
+        name: data.name,
+        description: data.description,
+        pricePerKg: data.price,
+        teffType: { connect: { id: newtype.id } },
+      };
+
+      if (newquality) {
+        productData.quality = { connect: { id: newquality.id } };
+      }
+
+      // 4️⃣ Create product
+      const newProd = await tx.teffProduct.create({
+        data: productData,
+        include: { teffType: true, quality: true, images: true },
+      });
+
+      // 5️⃣ Create images
+      if (data.images && data.images.length > 0) {
+        await tx.image.createMany({
+          data: data.images.map((url) => ({
+            url,
+            productId: newProd.id,
+          })),
+        });
+      }
+
+      return newProd; // <-- ✔ IMPORTANT
+    });
+
+    return result; // <-- return transaction result
+  } 
+  catch (error) {
+    console.error("❌ Error creating product:", error);
+    throw new Error("Failed to create product");
+  }
+}
 
 
-    async createProduct(
-        data: Omit<Product, "id" | "createdAt" | "updatedAt">
-    ): Promise<void> {
-        try {
-            await prisma.$transaction(async (tx) => {
-                // 1️⃣ Find or create TeffType
-                let newtype = await tx.teffType.findFirst({
-                    where: { name: data.teffType },
-                });
-
-                if (!newtype) {
-                    newtype = await tx.teffType.create({
-                        data: { name: data.teffType },
-                    });
-                }
-
-                // 2️⃣ Create TeffQuality if provided
-                const newquality = data.quality
-                    ? await tx.teffQuality.create({
-                        data: { name: data.quality },
-                    })
-                    : null;
-
-                // 3️⃣ Prepare product data
-                const productData: any = {
-                    name: data.name,
-                    description: data.description,
-                    pricePerKg: data.price,
-                    teffType: { connect: { id: newtype.id } },
-                };
-                if (newquality) {
-                    productData.quality = { connect: { id: newquality.id } };
-                }
-
-                // 4️⃣ Create product
-                const newProd = await tx.teffProduct.create({
-                    data: productData,
-                    include: { teffType: true, quality: true, images: true },
-                });
-
-                // 5️⃣ Create images if provided
-                if (data.images && data.images.length > 0) {
-                    await tx.image.createMany({
-                        data: data.images.map((url) => ({
-                            url,
-                            productId: newProd.id,
-                        })),
-                    });
-                }
-
-                console.log("✅ Product created successfully:", newProd);
-            });
-        } catch (error) {
-            console.error("❌ Error creating product:", error);
-            throw new Error("Failed to create product");
-        }
-    }
-
+   
 
 }

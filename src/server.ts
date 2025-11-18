@@ -5,12 +5,13 @@ import { app } from './app.js';
 import  admin  from 'firebase-admin';
 
 
+
 async function main() {
 
-var serviceAccount = require("path/to/serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// var serviceAccount = require("path/to/serviceAccountKey.json");
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount)
+// });
   // start server
   const port = config.port;
   app.listen(port, () => {

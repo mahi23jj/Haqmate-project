@@ -8,7 +8,9 @@ import { usersRouter } from './router/user_router.js';
 import { config } from './config.js';
 import { productRouter } from './router/productrouter.js';
 import { cartRouter } from './router/cartrouter.js';
-import { createOrder } from './router/paymentroute.js';
+import { OrderRouter} from './router/orderroute.js';
+import { FeedbackRouter } from './router/feedbackroute.js';
+import { ChapaRouter} from './router/chapa_paymentrouter.js';
 
 export const app = express();
 
@@ -45,7 +47,9 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/api', usersRouter);
 app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
-app.post('/api/v1/createOrder',createOrder)
+app.use('/api/order',OrderRouter);
+app.use('/api/feedback', FeedbackRouter);
+app.use('/api/payment', ChapaRouter);
 
 // parse JSON for your own routes (after auth)
 app.use(express.json());

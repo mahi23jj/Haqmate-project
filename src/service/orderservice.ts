@@ -98,10 +98,12 @@ export class OrderServiceImpl implements OrderService {
         if (!prod) throw new Error("Product not found");
 
         // Validate packaging
-        const packaging = await prisma.packaging.findUnique({
-            where: { sizeKg: product.packagingsize },
-        });
-        if (!packaging) throw new Error("Packaging not found");
+        const packaging = await prisma.packaging.upsert({
+            where: { sizeKg: product.packagingsize},
+            update: {},
+            create: { sizeKg: product.packagingsize},
+        })
+       
 
         const quantity = product.quantity ?? 1;
         const totalAmount = prod.pricePerKg * quantity * product.packagingsize;

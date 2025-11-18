@@ -35,8 +35,10 @@ router.get("/products/:id", async (req, res, next) => {
 // post /products - Create a new product (example, not implemented in service)
 router.post("/products", async (req, res, next) => {
   try {
-    const newProductData = req.body;
-    const newProduct = await products.createProduct(newProductData);
+    const {name , description, price, teffType, images, quality} = req.body;
+    const newProduct = await products.createProduct({
+      name , description, price, teffType, images, quality
+    });
     res.status(201).json(newProduct);
   } catch (error) {
     next(error);
