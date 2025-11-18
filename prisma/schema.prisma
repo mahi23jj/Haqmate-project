@@ -29,6 +29,7 @@ model User {
   order         Order[]
   feedback_request   feedback_request[]
   feedback        feedback[]
+  paymentIntents PaymentIntent[]
   
 
 
@@ -128,6 +129,7 @@ model TeffProduct {
 // enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
 enum Status {
   pending
+  failed
   paid
   delivered
   completed
@@ -151,6 +153,8 @@ model Order {
   items        OrderItem[]  // One order can have many order item
   feedback_request   feedback_request[]
   feedback        feedback[]
+  paymentIntents      PaymentIntent[]
+  paymentTransactions PaymentTransaction[]
 
 
   @@index([deliveryDate])
@@ -245,6 +249,90 @@ model Cart {
 }
 
 //for feedback i want is after a user order completed it will send notification for user 
+
+// enum paymentstatus {
+//   PENDING
+//   PAID
+//   FAILED
+
+// }
+
+model PaymentIntent {
+  id             String               @id @default(uuid())
+  orderId        String
+  userId        String
+  amount         Float
+  currency       String               @default("ETB")
+  method         String
+  status         String               @default("PENDING")
+  providerId     String?              
+  clientSecret   String?
+  metadata       Json                 @default("{}")
+  idempotencyKey String?              @unique
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  order          Order                @relation(fields: [orderId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+  transactions   PaymentTransaction[]
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([providerId])
+  @@index([idempotencyKey])
+}
+
+// -------------------- Payment Transactions --------------------
+model PaymentTransaction {
+  id              String          @id @default(uuid())
+  orderId         String
+  paymentIntentId String?         
+  provider        String
+  providerRef     String?
+  amountCents     Int
+  currency        String          @default("ETB")
+  status          String
+  rawPayload      Json?
+  type            String          @default("CAPTURE")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  idempotencyKey  String?
+
+  order           Order           @relation(fields: [orderId], references: [id])
+  paymentIntent   PaymentIntent?  @relation(fields: [paymentIntentId], references: [id])
+
+  @@index([orderId])
+  @@index([provider, providerRef])
+  @@index([paymentIntentId])
+  @@index([idempotencyKey])
+}
+
+enum idempotencyKeyStatus {
+  PENDING
+  SUCCESS
+  FAILURE
+}
+// -------------------- Idempotency Keys --------------------
+model IdempotencyKey {
+  id           String    @id @default(uuid())
+  key          String
+  operation    String
+  requestHash  String
+  responseData Json?
+  status       idempotencyKeyStatus    @default(PENDING) // PENDING | SUCCEEDED | FAILED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  expiresAt    DateTime
+
+  @@unique([key, operation])
+  @@index([expiresAt])
+  @@index([status])
+}
+
+
+
+
+
 
 
 // payment model can be added later when integrating payment gateway

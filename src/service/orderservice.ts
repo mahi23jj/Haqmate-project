@@ -16,7 +16,7 @@ export interface OrderResponse {
     phoneNumber: string;
     location: string;
     totalAmount: number;
-    status: 'pending' | 'paid' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
+    status: 'pending'| 'failed' | 'paid' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
     createdAt: Date;
     updatedAt: Date;
     items: {
@@ -38,8 +38,8 @@ export interface OrderService {
         product: OrderItemInput,
         location?: string,
         phoneNumber?: string,
-        locationChange?: boolean,
-        phoneChange?: boolean
+        locationChange?: boolean | false,
+        phoneChange?: boolean | false
     ): Promise<OrderResponse>;
     // getOrderById(id: string): Promise<OrderResponse>;
     getOrdersByUserId(userId: string): Promise<OrderResponse[]>;
