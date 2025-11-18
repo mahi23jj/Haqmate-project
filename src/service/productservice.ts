@@ -1,9 +1,17 @@
 import { PrismaClient } from '@prisma/client';
-import { NotFoundError } from '../errors/apperror.js';
+import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
 import type { promises } from 'dns';
 const prisma = new PrismaClient();
+import type {CreateProductInput} from '../validation/productvalidation.js'
 
 
+export interface ProductService {
+    getAllProducts(): Promise<Product[]>;
+    getProductById(id: string): Promise<Product | null>;
+    createProduct(data: CreateProductInput ): any;
+    //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
+    //   deleteProduct(id: number): Promise<boolean>;
+}
 export interface Product {
     id: string;
     name: string;
@@ -16,13 +24,6 @@ export interface Product {
     updatedAt: Date;
 }
 
-export interface ProductService {
-    getAllProducts(): Promise<Product[]>;
-    getProductById(id: string): Promise<Product | null>;
-    createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): any;
-    //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
-    //   deleteProduct(id: number): Promise<boolean>;
-}
 
 // Note: Actual implementation would interact with a database using an ORM like Prisma.
 // This is just the interface definition as per the request.
@@ -101,7 +102,7 @@ export class ProductServiceImpl implements ProductService {
     }
 
 async createProduct(
-  data: Omit<Product, "id" | "createdAt" | "updatedAt">
+  data: CreateProductInput
 ) {
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -114,16 +115,6 @@ async createProduct(
       }
       )
       
-    /*   findFirst({
-        where: { name: data.teffType },
-      }); */
-
-    //   if (!newtype) {
-    //     newtype = await tx.teffType.create({
-    //       data: { name: data.teffType },
-    //     });
-    //   }
-
       // 2️⃣ Create TeffQuality if provided
       let newquality = null;
       if (data.quality) {
@@ -165,9 +156,16 @@ async createProduct(
 
     return result; // <-- return transaction result
   } 
-  catch (error) {
+  catch (error : any) {
     console.error("❌ Error creating product:", error);
-    throw new Error("Failed to create product");
+    
+
+      if (error.code === "P2002") {
+        throw new AppError("Duplicate field value", 409);
+      }
+
+      throw new DatabaseError()
+
   }
 }
 

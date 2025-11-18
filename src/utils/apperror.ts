@@ -24,7 +24,7 @@ export class ValidationError extends AppError {
 }
 
 export class DatabaseError extends AppError {
-  constructor(message = "Database error") {
+  constructor(message = "Internate Server Error") {
     super(message, 500, false);
   }
 }

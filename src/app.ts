@@ -11,6 +11,7 @@ import { cartRouter } from './router/cartrouter.js';
 import { OrderRouter} from './router/orderroute.js';
 import { FeedbackRouter } from './router/feedbackroute.js';
 import { ChapaRouter} from './router/chapa_paymentrouter.js';
+import { globalErrorHandler } from './middleware/errorHandler.js';
 
 export const app = express();
 
@@ -40,6 +41,9 @@ app.use(express.json());
 
 // Example route (protected demonstration done via authClient or session logic)
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+
+app.use(globalErrorHandler);
 
 
 // Auth routes with better-auth
