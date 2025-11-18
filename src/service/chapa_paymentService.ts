@@ -157,7 +157,8 @@ async createPaymentIntent(
         first_name: metadata.firstName,
         last_name: metadata.lastName,
         tx_ref: txRef,
-        callback_url: `${process.env.BASE_URL}/payments/chapa/callback`,
+        callback_url: `http://localhost:3000/api/payment/callback`
+        // ${process.env.BASE_URL},
       }),
     });
 
@@ -274,27 +275,41 @@ async createPaymentIntent(
 }
 
 
-
 async handleWebhook(data: any): Promise<void> {
-  const { tx_ref: txRef, status: chapaStatus } = data;
+  const txRef = data.trx_ref;
 
-  let newStatus: 'pending'| 'failed' | 'paid';
-
-
-
-  if (chapaStatus.toLowerCase().includes("success")) {
-     newStatus = 'paid';
-
-  }
-   
-  else if (["failed", "cancelled"].some(x => chapaStatus.toLowerCase().includes(x))){
-      newStatus = 'failed';
-
-  }
-  else  {
-      newStatus = 'pending';
+  if (!txRef) {
+    console.warn("Missing trx_ref in callback.");
+    return;
   }
 
+  // STEP 1: VERIFY PAYMENT FROM CHAPA
+//   const verifyResponse = await fetch(
+//     `https://api.chapa.co/v1/transaction/verify/${txRef}`,
+//     {
+//       headers: {
+//         Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
+//       },
+//     }
+//   );
+
+//   const verifyJson = await verifyResponse.json();
+
+  const chapaStatus = data.status;
+
+  console.log("Chapa verified status:", chapaStatus);
+
+  let newStatus: "pending" | "failed" | "paid";
+
+  if (chapaStatus === "success") {
+    newStatus = "paid";
+  } else if (["failed", "cancelled"].includes(chapaStatus)) {
+    newStatus = "failed";
+  } else {
+    newStatus = "pending";
+  }
+
+  // STEP 2: UPDATE PAYMENT INTENT
   const updatedIntent = await prisma.paymentIntent.updateMany({
     where: { providerId: txRef },
     data: { status: newStatus, updatedAt: new Date() },
@@ -305,27 +320,84 @@ async handleWebhook(data: any): Promise<void> {
     return;
   }
 
-  // Get actual intent (to know order_id)
+  // STEP 3: GET THE PAYMENT INTENT
   const paymentIntent = await prisma.paymentIntent.findFirst({
     where: { providerId: txRef },
   });
 
   if (!paymentIntent) return;
 
-  // Update payment_transactions
+  // STEP 4: UPDATE TRANSACTION
   await prisma.paymentTransaction.updateMany({
     where: { paymentIntentId: paymentIntent.id },
     data: { status: newStatus, updatedAt: new Date() },
   });
 
-  // Update order status
+  // STEP 5: UPDATE ORDER
   await prisma.order.update({
     where: { id: paymentIntent.orderId },
     data: { status: newStatus, updatedAt: new Date() },
   });
 
-
+  console.log(`Order + Payment updated to: ${newStatus}`);
 }
+
+
+
+
+// async handleWebhook(data: any): Promise<void> {
+//   const { tx_ref: txRef, status: chapaStatus } = data;
+
+//   console.log("chapa stutus 1 ",chapaStatus )
+
+//   let newStatus: 'pending'| 'failed' | 'paid';
+
+
+
+//   if (chapaStatus.toLowerCase().includes("success")) {
+//      newStatus = 'paid';
+
+//   }
+   
+//   else if (["failed", "cancelled"].some(x => chapaStatus.toLowerCase().includes(x))){
+//       newStatus = 'failed';
+
+//   }
+//   else  {
+//       newStatus = 'pending';
+//   }
+
+//   const updatedIntent = await prisma.paymentIntent.updateMany({
+//     where: { providerId: txRef },
+//     data: { status: newStatus, updatedAt: new Date() },
+//   });
+
+//   if (updatedIntent.count === 0) {
+//     console.warn(`No payment_intent found for txRef=${txRef}`);
+//     return;
+//   }
+
+//   // Get actual intent (to know order_id)
+//   const paymentIntent = await prisma.paymentIntent.findFirst({
+//     where: { providerId: txRef },
+//   });
+
+//   if (!paymentIntent) return;
+
+//   // Update payment_transactions
+//   await prisma.paymentTransaction.updateMany({
+//     where: { paymentIntentId: paymentIntent.id },
+//     data: { status: newStatus, updatedAt: new Date() },
+//   });
+
+//   // Update order status
+//   await prisma.order.update({
+//     where: { id: paymentIntent.orderId },
+//     data: { status: newStatus, updatedAt: new Date() },
+//   });
+
+
+// }
 
 // async refundPayment(req: CreateRefundRequest): Promise<RefundResponse> {
 //   const { paymentIntentId, amount, reason, metadata = {}, idempotencyKey } = req;

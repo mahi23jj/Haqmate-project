@@ -25,8 +25,8 @@ router.post(
  /*  validateRequest(createPaymentIntentSchema), */
   async (req: any, res) => {
     try {
-      const { orderId, currency, idempotencyKey, metadata } = req.body;
-      const buyerId = req.auth.userId;
+      const {orderId, currency, idempotencyKey, metadata } = req.body;
+      const buyerId = req.user;
 
       if (!buyerId) {
         return res.status(401).json({ error: "User not authenticated" });
@@ -89,6 +89,43 @@ router.get(
     }
   }
 );
+
+
+// for client link for chapawebhook
+router.get("/callback", async (req, res) => {
+  try {
+    const data = req.query; // tx_ref will be here
+
+    console.log("🔥 Callback received:", data);
+
+    await paymentService.handleWebhook("CHAPA",data);
+
+    // Redirect user to success page (optional)
+    // return res.redirect("http://localhost:3000/payment-success");
+    res.status(200).json({ message: "Webhook processed" });
+    
+  } catch (err) {
+    console.error("Callback error:", err);
+    return res.status(500).json({ message: "Webhook handling failed" });
+  }
+});
+
+// Support POST too (just in case)
+router.post("/callback", async (req, res) => {
+  try {
+    const data = req.body; // tx_ref may be here
+    console.log("🔥 POST Callback received:", data);
+
+    await paymentService.handleWebhook("CHAPA",data);
+
+    res.status(200).json({ message: "Webhook processed" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Webhook failed" });
+  }
+});
+
 
 
 // router.post(
@@ -249,6 +286,6 @@ router.post("/admin/cleanup", authMiddleware, async (req: any, res) => {
   }
 });
 
-export default router;
+export { router as ChapaRouter };
 
 
