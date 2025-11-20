@@ -53,7 +53,7 @@ app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order',OrderRouter);
 app.use('/api/feedback', FeedbackRouter);
-app.use('/api/payment', ChapaRouter);
+app.use('/api/ payment', ChapaRouter);
 
 // parse JSON for your own routes (after auth)
 app.use(express.json());
