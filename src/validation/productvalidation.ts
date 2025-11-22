@@ -1,7 +1,4 @@
 import {z} from "zod";
-
-
-
 export const createProductSchema = z.object({
     name: z.string().min(1, {message: "Name is required"}).max(50, {message: "Name is too long"}),
     description: z.string().min(1, {message: "Description is required"}).max(500, {message: "Description is too long"}),
@@ -10,6 +7,8 @@ export const createProductSchema = z.object({
     images: z.array(z.string()).min(1, {message: "At least one image is required"}),
     quality: z.string().max(50, {message: "Quality is too long"}).optional(),
 })
+
+
 
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
