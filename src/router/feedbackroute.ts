@@ -1,18 +1,18 @@
 import { Router, request } from "express";
-import { FeedbackServiceimp, type FeedbackFilter } from "../service/feedbackservice.js";
+import { FeedbackServiceImpl } from "../service/feedbackservice.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
-import { orderMiddleware } from "../middleware/ordermiddleware.js";
+import { orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
 router.use(authMiddleware);
 
-const Feedbacks = new FeedbackServiceimp();
+const Feedbacks = new FeedbackServiceImpl();
 
 
 router.post(
     "/",
-    orderMiddleware,     // <== validate order before creating feedback
+    productMiddleware,     // <== validate order before creating feedback
     async (req: Request, res: Response) => {
 
         const userId = req.user;
@@ -23,9 +23,9 @@ router.post(
 
         const { rating, message } = req.body;
 
-        const order = req.order; // from middleware
+        const product = req.product; // from middleware
 
-        if (!order) {
+        if (!product) {
             return res.status(400).json({ error: "Order not found" });
         }
 
@@ -33,47 +33,47 @@ router.post(
             userId: userId,
             rating: rating,
             comment: message,
-            orderid: order.id
+            productId: product.id
         }
         );
 
-        res.status(201).json(feedback);
+        res.status(201).json(
+            {
+                status: "success",
+                message: "Create a feedback",
+                data: feedback,
+            }
+        );
     });
 
-router.get("/", async (req: Request, res: Response) => {
+    //674815c2-d74e-454d-8867-cec02dc12891
+
+router.get("/:productId", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { teffType, teffQuality, teffPackaging } = req.query;
 
+        const { productId } = req.params;
 
-        const filters: FeedbackFilter = {};
+        if (!productId) {
+            return res.status(404).json({ error: "Product not found" });
+        }
 
-        if (typeof teffType === "string") filters.tefftype = teffType;
-        if (typeof teffQuality === "string") filters.teffquality = teffQuality;
-        if (typeof teffPackaging === "string") filters.teffpackaging = teffPackaging;
+        const Product = await Feedbacks.getFeedbackByProduct(productId);
+        return res.status(200).json(
+            {
+                status: "success",
+                message: "Retrieve a feedback by ID",
+                data: Product,
+            }
+        );
 
-        const feedbacks = await Feedbacks.filterFeedbacks(filters);
-
-        return res.status(201).json(feedbacks);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Error fetching feedbacks" });
-    }
-});
-
-
-router.get("/average", async (req: Request, res: Response) => {
-
-    try {
-        const feedbacks = await Feedbacks.averagerating();
-
-        return res.status(201).json(feedbacks);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Error fetching feedbacks" });
+        return res.status(500).json({ error: "Error featching orders " });
     }
 
-    
+
 })
+
+
 
 
 export { router as FeedbackRouter };

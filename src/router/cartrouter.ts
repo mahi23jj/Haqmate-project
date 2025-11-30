@@ -2,6 +2,7 @@ import { Router, request } from "express";
 import { CartServiceImpl } from "../service/cartservice.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
 import type { Request, Response, NextFunction } from "express";
+import { productMiddleware } from "../middleware/ordermiddleware.js";
 
 const router = Router();
 router.use(authMiddleware);
@@ -10,18 +11,26 @@ const Carts = new CartServiceImpl();
 
 
 // POST /cart/add - Add or update an item in the cart
-router.post("/add", async (req:Request, res:Response, next:NextFunction) => {
+router.post("/add_update", 
+  productMiddleware,
+  async (req:Request, res:Response, next:NextFunction) => {
   try {
 
      const  userId = req.user;
+
+     const product = req.product;
+
+     const productId = product?.id;
 
      if (!userId) {
        return res.status(401).json({ error: "Unauthorized" });
      }
 
-    const { productId, quantity = 1 , packagingsize } = req.body;
+
+
+    const {quantity = 1 , packagingsize } = req.body;
  
-    await Carts.addandupdateToCart(userId, {
+    await Carts.addOrUpdateCart(userId, {
       productId,
       quantity,
       packagingsize: packagingsize,
@@ -32,37 +41,6 @@ router.post("/add", async (req:Request, res:Response, next:NextFunction) => {
   }
 });
 
-router.put("/update-quantity", async (req:Request, res:Response, next:NextFunction) => {
-  try {
-     const  userId = req.user;
-     
-     if (!userId) {
-       return res.status(401).json({ error: "Unauthorized" });
-     }
-    const { productId, packagingId, action } = req.body;
-    
-    await Carts.updateCartItemQuantity(userId, productId, packagingId, action);
-    res.status(200).json({ message: "Item quantity updated successfully" });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.put("/update-packaging", async (req:Request, res:Response, next:NextFunction) => {
-  try {
-     const  userId = req.user;
-     
-     if (!userId) {
-       return res.status(401).json({ error: "Unauthorized" });
-     }
-    const { productId, packagingsize } = req.body;
-    
-    await Carts.updateItempackaging(userId, productId, packagingsize);
-    res.status(200).json({ message: "Item packaging updated successfully" });
-  } catch (error) {
-    next(error);
-  }
-});
 
 // Remove an item from the cart
 router.delete("/remove", async (req:Request, res:Response, next:NextFunction) => {

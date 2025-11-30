@@ -1,13 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 
-export const validate = (schema : any) => (req: Request, res : Response, next : NextFunction) => {
-  try {
-    req.body = schema.parse(req.body);
-    next();
-  } catch (err : any)  {
+export const validate = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
+  const result = schema.safeParse(req.body);
+
+  if (!result.success) {
     return res.status(400).json({
       status: "fail",
-      errors: err.errors,
-    });
+      errors: result.error.format(),
+    })
   }
+
+  req.body = result.data;
+  next();
 };

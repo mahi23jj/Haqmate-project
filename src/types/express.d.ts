@@ -8,9 +8,11 @@ declare global {
       context?: {
       models: {
         Order: any; // replace when you have actual types
+        product : any;
       };
     };
     order?: any;
+    product?: any;
     }
   }
 }

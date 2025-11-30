@@ -43,6 +43,27 @@ router.get("/products/:id", async (req, res, next) => {
 });
 
 
+router.put("/stockupdate/:id", async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    const isstock = await products.updatestock(productId);
+
+    if (isstock) {
+      return res.status(200).json(
+        {
+        status: "success",
+        message: "Retrieve a product by ID",
+        data: isstock,
+      }
+    
+    );
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+
 // post /products - Create a new product (example, not implemented in service)
 router.post(
   "/products",

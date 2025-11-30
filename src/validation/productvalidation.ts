@@ -6,6 +6,7 @@ export const createProductSchema = z.object({
     teffType: z.string().min(1, {message: "Teff type is required"}).max(50, {message: "Teff type is too long"}),
     images: z.array(z.string()).min(1, {message: "At least one image is required"}),
     quality: z.string().max(50, {message: "Quality is too long"}).optional(),
+    discount: z.number().min(0).max(100).optional()
 })
 
 

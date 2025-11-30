@@ -1,5 +1,9 @@
 
 import type { Request, Response, NextFunction } from "express";
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
 
 
 
@@ -12,7 +16,10 @@ export async function orderMiddleware(req: Request, res: Response, next: NextFun
 
     try {
 
-        const order = await req.context?.models.Order.findByPk(id);
+        const order = await prisma.order.findUnique({
+            where: { id: id }
+        });
+
 
         if (!order) {
             return res.status(404).json({ message: "Order not found" });
@@ -25,3 +32,34 @@ export async function orderMiddleware(req: Request, res: Response, next: NextFun
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
+
+
+
+
+
+
+export async function productMiddleware(req: Request, res: Response, next: NextFunction) {
+    const productId = req.body.productId || req.params.productId;
+
+    if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    try {
+        const product = await prisma.teffProduct.findUnique({
+            where: { id: productId }
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        req.product = product; // attach to request
+        next();
+    } catch (error) {
+        console.error("❌ Product middleware error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
