@@ -56,119 +56,263 @@ function createAuthRequestObject(appToken: string) {
   req.sign_type = "SHA256WithRSA";
   return req;
 }
-
-// 2️⃣ Create payment order
-export async function createOrder(req: Request, res: Response) {
+// ---------------------------
+// Create Order Controller
+// ---------------------------
+export const createOrder = async (req: Request, res: Response) => {
   try {
-    const { title, amount } = req.body;
-    const { token: fabricToken } = await applyFabricToken();
+    const title: string = req.body.title;
+    const amount: string = req.body.amount;
 
-    const createOrderResult = await requestCreateOrder(fabricToken, title, amount);
-    
-    
-    
+    const applyFabricTokenResult = await applyFabricToken();
+    const fabricToken = applyFabricTokenResult.token;
+
+    console.log("fabricToken =", fabricToken);
+
+    const createOrderResult = await requestCreateOrder(
+      fabricToken,
+      title,
+      amount
+    );
+
+    console.log("CreateOrderResult", createOrderResult);
+
     const prepayId = createOrderResult.biz_content.prepay_id;
 
     const rawRequest = createRawRequest(prepayId);
 
-    res.json(rawRequest);
+    console.log("RAW_REQ: ", rawRequest);
+
+  
+    return rawRequest;
   } catch (error: any) {
-    console.error("Create order error:", error.message);
-    res.status(500).json({ error: "Create order failed" });
+    console.error("Error in createOrder:", error.message);
+    res.status(500).json({ message: "Order creation failed" });
   }
-}
+};
 
-async function requestCreateOrder(fabricToken: string, title: string, amount: number) {
+// ---------------------------
+// Request Create Order
+// ---------------------------
+export const requestCreateOrder = async (
+  fabricToken: string,
+  title: string,
+  amount: string
+) => {
+  try {
+    const reqObject = createRequestObject(title, amount);
 
-    /* try {
-        const reqObject = createOrderRequestObject(title, amount);
-        const response = await axios.post(
-          `${config.baseUrl}/payment/v1/merchant/preOrder`,
-          reqObject,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-APP-Key": config.fabricAppId,
-              Authorization: fabricToken,
-            },
-          }
-        );
-      
-        console.log("Create orders response:", response.data);
-        return response.data;
-        
-    } catch (error) {
-    console.error("Error creating order:", error);
+    console.log("Request Object:", reqObject);
+
+    const response = await axios.post(
+      `${config.baseUrl}/payment/v1/merchant/preOrder`,
+      reqObject,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-APP-Key": config.fabricAppId,
+          Authorization: fabricToken,
+        },
+      }
+    );
+
+    console.log("Create orders response:", response.data);
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error while requesting create order:", error.message);
     throw error;
-        
-    } */
+  }
+};
 
-    try {
-        const reqObject = createOrderRequestObject(title, amount);
+// ---------------------------
+// Create Request Object
+// ---------------------------
+function createRequestObject(title: string, amount: string) {
 
-        console.log("Request Object:", reqObject);
-        
-  const response = await axios.post(
-    `${config.baseUrl}/payment/v1/merchant/preOrder`,
-    reqObject,
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "X-APP-Key": config.fabricAppId,
-        Authorization: fabricToken,
-      },
-      httpsAgent: new https.Agent({ rejectUnauthorized: false }), // For sandbox
-    }
-  );
-  return response.data;
-} catch (error: any) {
-  console.error("Status:", error.response?.status);
-  console.error("Response data:", error.response?.data);
-  console.error("Sent body:", error.config?.data);
-}
-
-}
-
-function createOrderRequestObject(title: string, amount: number) {
+  console.log(tools.createNonceStr())
+  console.log('time stamp example: ',tools.createTimeStamp())
   const req: any = {
     timestamp: tools.createTimeStamp(),
     nonce_str: tools.createNonceStr(),
     method: "payment.preorder",
     version: "1.0",
-    biz_content: {
-      trade_type: "InApp",
-      appid: config.merchantAppId,
-      merch_code: config.merchantCode,
-      merch_order_id: Date.now().toString(),
-      title,
-      total_amount: amount.toString(),
-      trans_currency: "ETB",
-      timeout_express: "120m",
-      payee_identifier: config.merchantCode,
-      payee_identifier_type: "04",
-      payee_type: "5000",
-    },
   };
+  
+
+  const biz: any = {
+    trade_type: "InApp",
+    appid: config.merchantAppId,
+    merch_code: config.merchantCode,
+    merch_order_id: createMerchantOrderId(),
+    title: title,
+    total_amount: amount,
+    trans_currency: "ETB",
+    timeout_express: "120m",
+    payee_identifier: config.merchantCode,
+    payee_identifier_type: "04",
+    payee_type: "5000",
+  };
+
+  console.log("Request Object:", req);
+
+  req.biz_content = biz;
   req.sign = tools.signRequestObject(req);
+
+  console.log("Request Object with sign:", req.sign);
   req.sign_type = "SHA256WithRSA";
+
+  console.log("Signed Request:", req);
+
   return req;
 }
 
+function createMerchantOrderId(): string {
+  return Date.now().toString();
+}
+
+// ---------------------------
+// Create Raw Request for Mobile SDK
+// ---------------------------
 function createRawRequest(prepayId: string) {
-  const map: Record<string, string> = {
-    appid: config.merchantAppId ?? "",
-    merch_code: config.merchantCode ?? "",
+  const map = {
+    appid: config.merchantAppId,
+    merch_code: config.merchantCode,
     nonce_str: tools.createNonceStr(),
     prepay_id: prepayId,
     timestamp: tools.createTimeStamp(),
   };
+
   const sign = tools.signRequestObject(map);
 
-  console.log("raw request", sign);
-  
-  return {
-    ...map,
-    sign,
-    sign_type: "SHA256WithRSA",
-  };
+  const rawRequest = [
+    `appid=${map.appid}`,
+    `merch_code=${map.merch_code}`,
+    `nonce_str=${map.nonce_str}`,
+    `prepay_id=${map.prepay_id}`,
+    `timestamp=${map.timestamp}`,
+    `sign=${sign}`,
+    `sign_type=SHA256WithRSA`,
+  ].join("&");
+
+  console.log("rawRequest =", rawRequest);
+
+  return rawRequest;
 }
+
+
+// 2️⃣ Create payment order
+// export async function createOrder(req: Request, res: Response) {
+//   try {
+//     const { title, amount } = req.body;
+//     const { token: fabricToken } = await applyFabricToken();
+
+//     const createOrderResult = await requestCreateOrder(fabricToken, title, amount);
+    
+    
+    
+//     const prepayId = createOrderResult.biz_content.prepay_id;
+
+//     const rawRequest = createRawRequest(prepayId);
+
+//     res.json(rawRequest);
+//   } catch (error: any) {
+//     console.error("Create order error:", error.message);
+//     res.status(500).json({ error: "Create order failed" });
+//   }
+// }
+
+// async function requestCreateOrder(fabricToken: string, title: string, amount: number) {
+
+//     /* try {
+//         const reqObject = createOrderRequestObject(title, amount);
+//         const response = await axios.post(
+//           `${config.baseUrl}/payment/v1/merchant/preOrder`,
+//           reqObject,
+//           {
+//             headers: {
+//               "Content-Type": "application/json",
+//               "X-APP-Key": config.fabricAppId,
+//               Authorization: fabricToken,
+//             },
+//           }
+//         );
+      
+//         console.log("Create orders response:", response.data);
+//         return response.data;
+        
+//     } catch (error) {
+//     console.error("Error creating order:", error);
+//     throw error;
+        
+//     } */
+
+//     try {
+//         const reqObject = createOrderRequestObject(title, amount);
+
+//         console.log("Request Object:", reqObject);
+        
+//   const response = await axios.post(
+//     `${config.baseUrl}/payment/v1/merchant/preOrder`,
+//     reqObject,
+//     {
+//       headers: {
+//         "Content-Type": "application/json",
+//         "X-APP-Key": config.fabricAppId,
+//         Authorization: fabricToken,
+//       },
+//       httpsAgent: new https.Agent({ rejectUnauthorized: false }), // For sandbox
+//     }
+//   );
+//   return response.data;
+// } catch (error: any) {
+//   console.error("Status:", error.response?.status);
+//   console.error("Response data:", error.response?.data);
+//   console.error("Sent body:", error.config?.data);
+// }
+
+// }
+
+// function createOrderRequestObject(title: string, amount: number) {
+//   const req: any = {
+//     timestamp: tools.createTimeStamp(),
+//     nonce_str: tools.createNonceStr(),
+//     method: "payment.preorder",
+//     version: "1.0",
+//     biz_content: {
+//       trade_type: "InApp",
+//       appid: config.merchantAppId,
+//       merch_code: config.merchantCode,
+//       merch_order_id: Date.now().toString(),
+//       title,
+//       total_amount: amount.toString(),
+//       trans_currency: "ETB",
+//       timeout_express: "120m",
+//       payee_identifier: config.merchantCode,
+//       payee_identifier_type: "04",
+//       payee_type: "5000",
+//     },
+//   };
+//   req.sign = tools.signRequestObject(req);
+//   req.sign_type = "SHA256WithRSA";
+//   return req;
+// }
+
+// function createRawRequest(prepayId: string) {
+//   const map: Record<string, string> = {
+//     appid: config.merchantAppId ?? "",
+//     merch_code: config.merchantCode ?? "",
+//     nonce_str: tools.createNonceStr(),
+//     prepay_id: prepayId,
+//     timestamp: tools.createTimeStamp(),
+//   };
+//   const sign = tools.signRequestObject(map);
+
+//   console.log("raw request", sign);
+  
+//   return {
+//     ...map,
+//     sign,
+//     sign_type: "SHA256WithRSA",
+//   };
+// }

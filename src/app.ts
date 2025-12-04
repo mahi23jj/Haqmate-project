@@ -12,6 +12,7 @@ import { OrderRouter} from './router/orderroute.js';
 import { FeedbackRouter } from './router/feedbackroute.js';
 import { ChapaRouter} from './router/chapa_paymentrouter.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
+import * as telebirr from './router/paymentroute.js';
 
 export const app = express();
 
@@ -54,6 +55,24 @@ app.use('/api/cart', cartRouter);
 app.use('/api/order',OrderRouter);
 app.use('/api/feedback', FeedbackRouter);
 app.use('/api/ payment', ChapaRouter);
+
+app.post("/apply/h5token", function (req, res) {
+  telebirr.authToken(req, res);
+});
+
+app.post("/create/order", async (req, res) => {
+  try {
+    const result = await telebirr.createOrder(req, res);
+    return res.status(200).json(result);  // only response
+  } catch (err) {
+    console.error("Error creating order:", err);
+    return res.status(500).json({ error: "Failed to create order" });
+  }
+});
+
+// app.post("/create/mandetOrder", function (req, res) {
+//   telebirr.createMandetOrder(req, res);
+// });
 
 // parse JSON for your own routes (after auth)
 app.use(express.json());

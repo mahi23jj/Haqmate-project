@@ -48,7 +48,8 @@ router.post(
 
     //674815c2-d74e-454d-8867-cec02dc12891
 
-router.get("/:productId", async (req: Request, res: Response, next: NextFunction) => {
+router.get("/:productId",
+     async (req: Request, res: Response, next: NextFunction) => {
     try {
 
         const { productId } = req.params;

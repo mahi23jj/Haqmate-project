@@ -1,21 +1,8 @@
-import crypto from "crypto";
-import fs from "fs";
- // replace with actual import path
-// import pmlib from "";
 import { config } from "../config.js";
-
-
-
-export function createTimeStamp(): string {
-  return Math.floor(Date.now() / 1000).toString();
-}
-
-export function createNonceStr(length = 16): string {
-  return crypto.randomBytes(length).toString("hex");
-}
+import {rs} from "./sign-util-lib.js";
 
 // Fields not participating in signature
-const excludeFields = [
+const excludeFields: string[] = [
   "sign",
   "sign_type",
   "header",
@@ -25,102 +12,71 @@ const excludeFields = [
   "biz_content",
 ];
 
-/**
- * Sign the request object according to Fabric API rules
- * @param requestObject The full request object including biz_content
- * @returns base64 encoded signature string
- */
-export function signRequestObject(requestObject: Record<string, any>): string {
+interface BizContent {
+  [key: string]: any;
+}
+
+interface RequestObject {
+  [key: string]: any;
+  biz_content?: BizContent;
+}
+
+function signRequestObject(requestObject: RequestObject): string {
   const fields: string[] = [];
-  const fieldMap: Record<string, any> = {};
+  const fieldMap: { [key: string]: any } = {};
 
-  // Include top-level fields except excluded ones
   for (const key in requestObject) {
-    if (!excludeFields.includes(key)) {
-      fields.push(key);
-      fieldMap[key] = requestObject[key];
-    }
+    if (excludeFields.includes(key)) continue;
+    fields.push(key);
+    fieldMap[key] = requestObject[key];
   }
 
-  // Include biz_content fields
-  if (requestObject.biz_content && typeof requestObject.biz_content === "object") {
-    const biz = requestObject.biz_content;
+  // Include biz_content fields in signature
+  if (requestObject.biz_content) {
+    const biz: BizContent = requestObject.biz_content;
     for (const key in biz) {
-      if (!excludeFields.includes(key)) {
-        fields.push(key);
-        fieldMap[key] = biz[key];
-      }
+      if (excludeFields.includes(key)) continue;
+      fields.push(key);
+      fieldMap[key] = biz[key];
     }
   }
 
-  // Sort keys alphabetically (ASCII order)
+  // Sort by ASCII
   fields.sort();
 
-  // Create string to sign
   const signStrList: string[] = fields.map((key) => `${key}=${fieldMap[key]}`);
-  const signOriginStr = signStrList.join("&");
+  const signOriginStr: string = signStrList.join("&");
+  console.log("signOriginStr", signOriginStr);
 
-  console.log("signOriginStr:", signOriginStr);
-
-  const signature = signString(signOriginStr, config.PrivateKey);
-console.log("signature:",signature); // <- this is the actual signature
-
-
-  // Sign the string using RSA-SHA256
-  return signature;
+  return signString(signOriginStr, config.PrivateKey);
 }
 
-// /**
-//  * Sign the given string using SHA256withRSA and return base64
-//  * @param text The string to sign
-//  * @param privateKey Your RSA private key
-//  */
-// function signString(text: string, privateKey: string): string {
-//   const sha256withrsa = new pmlib.rs.KJUR.crypto.Signature({
-//     alg: "SHA256withRSAandMGF1",
-//   });
+const signString = (text: string, privateKey: string): string => {
+  const sha256withrsa = new rs.KJUR.crypto.Signature({
+    alg: "SHA256withRSAandMGF1",
+  });
+  sha256withrsa.init(privateKey);
+  sha256withrsa.updateString(text);
+  const sign: string = rs.hextob64(sha256withrsa.sign());
+  console.log("privateKey:");
+  console.log("sign:", sign);
+  return sign;
+};
 
-//   sha256withrsa.init(privateKey);
-//   sha256withrsa.updateString(text);
-
-//   const sign = pmlib.rs.hextob64(sha256withrsa.sign());
-//   return sign;
-// }
-
-/**
- * Sign the given string using SHA256withRSA and return base64
- * @param text The string to sign
- * @param privateKey Your RSA private key in PEM format
- */
-export function signString(text: string, privateKey: string): string {
-  // Create a signer object using SHA256
-  const signer = crypto.createSign("RSA-SHA256");
-
-  //  console.log("sign:", signer);
-
-  // Update the signer with the string to sign
-  signer.update(text);
-  signer.end();
-
-  //  console.log("sign2:", signer);
-
-  // Sign using the private key and output as base64
-  const signature = signer.sign(privateKey, "base64");
-
-  //  console.log("Signature:", signature);
-  return signature;
+function createTimeStamp(): string {
+  return Math.floor(Date.now() / 1000).toString();
 }
 
+// Create a 32-character random string
+function createNonceStr(): string {
+  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let str = "";
+  for (let i = 0; i < 32; i++) {
+    const index = Math.floor(Math.random() * chars.length);
+    str += chars[index];
+  }
+  return str;
+}
 
-// export function signRequestObject(obj: Record<string, any>): string {
-//   const sortedKeys = Object.keys(obj).sort();
-//   const dataString = sortedKeys.map(k => `${k}=${obj[k]}`).join("&");
-
-//   const privateKey = fs.readFileSync("path/to/private_key.pem", "utf8");
-//   const sign = crypto.createSign("RSA-SHA256");
-//   sign.update(dataString);
-//   sign.end();
-
-//   return sign.sign(privateKey, "base64"); // usually base64 encoding is required
-// }
+export { signString, signRequestObject, createTimeStamp, createNonceStr };
 

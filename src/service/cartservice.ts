@@ -27,7 +27,7 @@ export interface CartService {
         quantity: number
     ): Promise<void>;
     removeItemFromCart(userId: string, productId: string, packaging: number): Promise<void>;
-    getCartItems(userId: string): Promise<any[]>;
+    getCartItems(userId: string): Promise<any>;
     clearCart(userId: string): Promise<void>;
 
 }
@@ -163,7 +163,7 @@ export class CartServiceImpl implements CartService {
         }
     }
 
-    async getCartItems(userId: string): Promise<any[]> {
+    async getCartItems(userId: string): Promise<any> {
         try {
             const cartItems = await prisma.cart.findMany({
                 where: { userId },
@@ -175,19 +175,30 @@ export class CartServiceImpl implements CartService {
                             pricePerKg: true,
                             images: { select: { url: true } },
                             teffType: { select: { name: true } },
-                            quality: { select: { id: true, name: true } }
+                            quality: { select: { id: true, name: true } },
+                            discount: true,
                         },
                     },
                 },
             });
 
-            return cartItems.map(item => ({
+            const subtotalPrice = cartItems.reduce(
+                (total, item) =>
+                    total + (item.product.pricePerKg * item.quantity * item.packaging * (1 - (item.product.discount || 0) / 100)),
+                0
+            );
+
+            const taxprice = 0.15 * subtotalPrice;
+
+            const totalPrice = subtotalPrice + taxprice;
+
+            const formattedCart = cartItems.map(item => ({
                 id: item.id,
                 quantity: item.quantity,
                 packagingSize: item.packaging,
                 createdAt: item.createdAt,
                 updatedAt: item.updatedAt,
-
+                totalprice: item.quantity * item.product.pricePerKg * item.packaging * (1 - (item.product.discount || 0) / 100),
                 product: {
                     id: item.product.id,
                     name: item.product.name,
@@ -201,6 +212,9 @@ export class CartServiceImpl implements CartService {
                         : null
                 }
             }));
+
+
+            return { cart: formattedCart, subtotalPrice , taxprice , totalPrice };
         } catch (error) {
             console.error('❌ Error fetching cart items:', error);
             throw error;

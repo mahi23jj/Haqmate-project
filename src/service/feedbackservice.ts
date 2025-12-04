@@ -30,65 +30,83 @@ export interface FeedbackService {
 export class FeedbackServiceImpl implements FeedbackService {
   
   // ✅ Create a feedback for a specific product
-  async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
-    try {
-      const newFeedback = await prisma.feedback.create({
-        data: {
-          productid: feedback.productId,
+async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
+  try {
+    // Check if feedback already exists
+    const existing = await prisma.feedback.findUnique({
+      where: {
+        userId_productid: {
           userId: feedback.userId,
-          message: feedback.comment,
-          rating: feedback.rating,
-          submittedAt: new Date(),
-        },
-      });
+          productid: feedback.productId
+        }
+      }
+    });
 
-      return newFeedback;
-    } catch (error) {
-      console.error('❌ Error creating feedback:', error);
-      throw new Error('Error creating feedback');
+    if (existing) {
+      throw new Error("You have already submitted a review for this product.");
     }
-  }
 
-  // ✅ Get all feedbacks for a product + stats
-  async getFeedbackByProduct(productId: string) {
-    try {
-      // 1️⃣ Fetch all feedbacks for the product
-      const feedbacks = await prisma.feedback.findMany({
-        where: { productid: productId },
-        orderBy: { submittedAt: 'desc' }, // latest first
-        select: {
-          id: true,
-          productid: true,
-          // include all use information
-          user: {
-            select: {
-              id: true,
-              name: true,
-            }
+    // Create if not exist
+    const newFeedback = await prisma.feedback.create({
+      data: {
+        productid: feedback.productId,
+        userId: feedback.userId,
+        message: feedback.comment,
+        rating: feedback.rating,
+        submittedAt: new Date(),
+      },
+    });
+
+    return newFeedback;
+
+  } catch (error) {
+    console.error("❌ Error creating feedback:", error);
+    throw new Error("Error creating feedback");
+  }
+}
+
+
+
+    // ✅ Get all feedbacks for a product + stats
+    async getFeedbackByProduct(productId: string) {
+      try {
+        // 1️⃣ Fetch all feedbacks for the product
+        const feedbacks = await prisma.feedback.findMany({
+          where: { productid: productId },
+          orderBy: { submittedAt: 'desc' }, // latest first
+          select: {
+            id: true,
+            productid: true,
+            // include all use information
+            user: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
+            message: true,
+            rating: true,
+            submittedAt: true,
           },
-          message: true,
-          rating: true,
-          submittedAt: true,
-        },
-      });
+        });
 
-      // 2️⃣ Aggregate average rating & total ratings
-      const stats = await prisma.feedback.aggregate({
-        where: { productid: productId },
-        _avg: { rating: true },
-        _count: { rating: true },
-      });
+        // 2️⃣ Aggregate average rating & total ratings
+        const stats = await prisma.feedback.aggregate({
+          where: { productid: productId },
+          _avg: { rating: true },
+          _count: { rating: true },
+        });
 
-      return {
-        feedback:feedbacks,
-        averageRating: stats._avg.rating ?? null,
-        totalRatings: stats._count.rating,
-      };
-    } catch (error) {
-      console.error('❌ Error getting feedbacks:', error);
-      throw new Error('Error getting feedbacks');
+        return {
+          feedback:feedbacks,
+          averageRating: stats._avg.rating ?? null,
+          totalRatings: stats._count.rating,
+        };
+      } catch (error) {
+        console.error('❌ Error getting feedbacks:', error);
+        throw new Error('Error getting feedbacks');
+      }
     }
-  }
 
 
   async gettopfeedbacks(Productid : string): Promise<any> {
