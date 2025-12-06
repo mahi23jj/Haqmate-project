@@ -108,6 +108,7 @@ export class OrderServiceImpl implements OrderService {
             id: order.id,
             totalAmount: order.totalAmount,
             status: order.status,
+            merchantOrderId : order.merchOrderId,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             items: order.items.map(item => ({
@@ -159,6 +160,7 @@ export class OrderServiceImpl implements OrderService {
             status: order!.status,
             createdAt: order!.createdAt,
             updatedAt: order!.updatedAt,
+            merchantOrderId : order!.merchOrderId,
             items: order!.items.map(item => ({
                 id: item.id,
                 quantity: item.quantity,
@@ -233,6 +235,7 @@ export class OrderServiceImpl implements OrderService {
                 location,
                 totalAmount,
                 status: Status.PENDING,
+                merchOrderId : 'MORD' + Date.now().toString(), // Example merch order ID
                 items: {
                     create: {
                         productId: prod.id,
@@ -385,6 +388,7 @@ export class OrderServiceImpl implements OrderService {
                 location,
                 totalAmount,
                 status: "pending",
+                merchOrderId : 'MORD' + Date.now().toString(), // Example merch order ID
                 items: { create: orderItems },
             },
             select: {
@@ -417,23 +421,27 @@ export class OrderServiceImpl implements OrderService {
 
         // 5. Initialize order tracking immediately
         const trackingSteps = [
-            { status: "pending", title: "Order Placed" },
-            { status: "paid", title: "Order Confirmed" },
-            { status: "failed", title: "Order Failed" },
-            { status: "delivered", title: "Delivered" },
-            { status: "completed", title: "Order Completed" },
-            { status: "cancelled", title: "Order Cancelled" },
-            { status: "refunded", title: "Order Refunded" }
+            { status: Status.PENDING, title: "Order Placed" },
+            { status: Status.PAID, title: "Order Confirmed" },
+            { status: Status.FAILED, title: "Order failed" },
+            { status: Status.DELIVERED, title: "Delivered" },
+            { status: Status.COMPLETED, title: "Order Completed" },
+            { status: Status.CANCELLED, title: "Order Cancelled" },
+            { status: Status.REFUNDED, title: "Order Refunded" }
         ];
 
+
+
+        // Bulk create tracking entries with timestamp = null
         await prisma.orderTracking.createMany({
             data: trackingSteps.map(step => ({
                 orderId: order.id,
                 status: step.status,
                 title: step.title,
-                timestamp: step.status === "pending" ? new Date() : null // only PENDING gets initial timestamp
+                timestamp: step.status === Status.PENDING ? new Date() : null, // set initial placed timestamp
             }))
         });
+
 
         return order;
     }

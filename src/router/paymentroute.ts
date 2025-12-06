@@ -153,35 +153,54 @@ function createAuthRequestObject(appToken: string) {
 // ---------------------------
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const title: string = req.body.title;
-    const amount: string = req.body.amount;
+    const userId = req.user;
 
-    const applyFabricTokenResult = await applyFabricToken();
-    const fabricToken = applyFabricTokenResult.token;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
-    console.log("fabricToken =", fabricToken);
+    const orderId = req.body.orderId;
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        userId: true,
+        totalAmount: true,
+        merchOrderId: true,
+        status: true,
+      },
+    });
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.userId !== userId)
+      return res.status(403).json({ error: "Order does not belong to this buyer" });
+    if (order.status !== "pending")
+      return res.status(400).json({ error: `Order not eligible for payment. Status: ${order.status}` });
+
+    const amount = order.totalAmount.toString();
+    const title = `Order Payment - ${order.merchOrderId}`;
+
+    const { token: fabricToken } = await applyFabricToken();
 
     const createOrderResult = await requestCreateOrder(
       fabricToken,
       title,
-      amount
+      amount,
+      order.merchOrderId
     );
-
-    console.log("CreateOrderResult", createOrderResult);
 
     const prepayId = createOrderResult.biz_content.prepay_id;
 
     const rawRequest = createRawRequest(prepayId);
 
-    console.log("RAW_REQ: ", rawRequest);
-
-  
-    return rawRequest;
+    return res.status(200).json(rawRequest);
   } catch (error: any) {
     console.error("Error in createOrder:", error.message);
-    res.status(500).json({ message: "Order creation failed" });
+    return res.status(500).json({ message: "Order creation failed" });
   }
 };
+
 
 // ---------------------------
 // Request Create Order
@@ -189,10 +208,11 @@ export const createOrder = async (req: Request, res: Response) => {
 export const requestCreateOrder = async (
   fabricToken: string,
   title: string,
-  amount: string
+  amount: string,
+  merchOrderId: string
 ) => {
   try {
-    const reqObject = createRequestObject(title, amount);
+    const reqObject = createRequestObject(title, amount , merchOrderId);
 
     console.log("Request Object:", reqObject);
 
@@ -204,6 +224,7 @@ export const requestCreateOrder = async (
           "Content-Type": "application/json",
           "X-APP-Key": config.fabricAppId,
           Authorization: fabricToken,
+
         },
       }
     );
@@ -220,7 +241,7 @@ export const requestCreateOrder = async (
 // ---------------------------
 // Create Request Object
 // ---------------------------
-function createRequestObject(title: string, amount: string) {
+function createRequestObject(title: string, amount: string , merchOrderId: string) {
 
   console.log(tools.createNonceStr())
   console.log('time stamp example: ',tools.createTimeStamp())
@@ -236,7 +257,7 @@ function createRequestObject(title: string, amount: string) {
     trade_type: "InApp",
     appid: config.merchantAppId,
     merch_code: config.merchantCode,
-    merch_order_id: createMerchantOrderId(),
+    merch_order_id: merchOrderId,
     title: title,
     total_amount: amount,
     trans_currency: "ETB",
@@ -257,10 +278,6 @@ function createRequestObject(title: string, amount: string) {
   console.log("Signed Request:", req);
 
   return req;
-}
-
-function createMerchantOrderId(): string {
-  return Date.now().toString();
 }
 
 // ---------------------------

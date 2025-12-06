@@ -27,7 +27,7 @@ export const registerSchema = z.object({
         }),
 
     username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-    location: z.string().min(3, { message: "Location must be at least 3 characters" }),
+
     phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" })
 })
 

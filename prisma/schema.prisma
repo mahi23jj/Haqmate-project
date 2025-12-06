@@ -16,36 +16,35 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-   url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id            String      @id @default(uuid())
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  location      String?
-  phoneNumber   String?  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  cart          Cart[]
-  order         Order[]
-  feedback_request   feedback_request[]
-  feedback        feedback[]
-  paymentIntents PaymentIntent[]
-  
+  id               String             @id @default(uuid())
+  name             String
+  email            String
+  emailVerified    Boolean            @default(false)
+  image            String?
 
-
+  location          String
+  phoneNumber      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @default(now()) @updatedAt
+  area               Area                @relation(fields: [location], references: [id])
+  sessions         Session[]
+  accounts         Account[]
+  cart             Cart[]
+  order            Order[]
+  feedback_request feedback_request[]
+  feedback         feedback[]
+  paymentIntents   PaymentIntent[]
 
   @@unique([email])
   @@map("user")
 }
 
 model Session {
-  id        String     @id @default(uuid())
+  id        String   @id @default(uuid())
   expiresAt DateTime
   token     String
   createdAt DateTime @default(now())
@@ -60,7 +59,7 @@ model Session {
 }
 
 model Account {
-  id                    String      @id @default(uuid())
+  id                    String    @id @default(uuid())
   accountId             String
   providerId            String
   userId                String
@@ -79,7 +78,7 @@ model Account {
 }
 
 model Verification {
-  id         String     @id @default(uuid())
+  id         String   @id @default(uuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -88,22 +87,24 @@ model Verification {
 
   @@map("verification")
 }
+
 model TeffType {
-  id          String             @id @default(uuid()) 
-  name        String              @unique
-  products    TeffProduct[]
+  id       String        @id @default(uuid())
+  name     String        @unique
+  products TeffProduct[]
 }
+
 model TeffQuality {
-  id          String            @id @default(uuid()) 
-  name        String             @unique // "Level 1", "Level 2"
-  products    TeffProduct[]
+  id       String        @id @default(uuid())
+  name     String        @unique // "Level 1", "Level 2"
+  products TeffProduct[]
 }
 
 model Image {
-  id          String         @id @default(uuid()) 
-  url         String
-  productId   String
-  product     TeffProduct @relation(fields: [productId], references: [id])
+  id        String      @id @default(uuid())
+  url       String
+  productId String
+  product   TeffProduct @relation(fields: [productId], references: [id])
 }
 
 // model Packaging {
@@ -113,27 +114,24 @@ model Image {
 //   orderItems OrderItem[]
 // }
 
-
 model TeffProduct {
-  id            String        @id @default(uuid())
-  name          String
-  description   String?
-  pricePerKg    Float
-  teffTypeId    String
-  qualityId     String?
-  teffType      TeffType      @relation(fields: [teffTypeId], references: [id])
-  quality       TeffQuality?  @relation(fields: [qualityId], references: [id])
-  images        Image[]
-  cartItems     Cart[]
-  orderItems    OrderItem[]
-  feedback       feedback[]
-  discount      Float?    // discount percentage
-  inStock       Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  pricePerKg  Float
+  teffTypeId  String
+  qualityId   String?
+  teffType    TeffType     @relation(fields: [teffTypeId], references: [id])
+  quality     TeffQuality? @relation(fields: [qualityId], references: [id])
+  images      Image[]
+  cartItems   Cart[]
+  orderItems  OrderItem[]
+  feedback    feedback[]
+  discount    Float? // discount percentage
+  inStock     Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
-
-
 
 // enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
 enum Status {
@@ -147,41 +145,53 @@ enum Status {
 }
 
 model Order {
-  id           String       @id @default(uuid())
-  merchOrderId  String   @unique
-  userId       String
-  status       Status       @default(pending)
-  totalAmount  Float
-  location     String
-  phoneNumber  String    
-  // optional: can be set when order is delivered canbe null initially
-  deliveryDate DateTime?      
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                 String              @id @default(uuid())
+  merchOrderId       String              @unique
+  userId             String
+  status             Status              @default(pending)
+  totalAmount        Float
 
+  areaId             String
+  area               Area                @relation(fields: [areaId], references: [id])
+  phoneNumber        String
 
-  user         User         @relation(fields: [userId], references: [id])
-  items        OrderItem[]  // One order can have many order item
+  // Delivery details
+  totalDeliveryFee   Int
+  extraDeliveryFee   Int                 @default(0)
+  extraDistanceLevel ExtraDistanceLevel?
+
+  deliveryDate       DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  // Relations
+  user               User                @relation(fields: [userId], references: [id])
+  items              OrderItem[]
   feedback_request   feedback_request[]
-  paymentIntents      PaymentIntent[]
+  paymentIntents     PaymentIntent[]
   paymentTransactions PaymentTransaction[]
-  orderTrackings      OrderTracking[]
-
-
+  orderTrackings     OrderTracking[]
 
   @@index([deliveryDate])
   @@index([status])
 }
 
+enum ExtraDistanceLevel {
+  near
+  medium
+  far
+}
+
+
 model OrderItem {
-  id           String        @id @default(uuid())
-  orderId      String
-  productId    String
-  packaging  Int           @default(1)
-  quantity     Int
-  price        Float
-  order        Order         @relation(fields: [orderId], references: [id])
-  product      TeffProduct   @relation(fields: [productId], references: [id])
+  id        String      @id @default(uuid())
+  orderId   String
+  productId String
+  packaging Int         @default(1)
+  quantity  Int
+  price     Float
+  order     Order       @relation(fields: [orderId], references: [id])
+  product   TeffProduct @relation(fields: [productId], references: [id])
   // packaging    Packaging     @relation(fields: [packagingId], references: [id])
 
   @@index([orderId])
@@ -195,67 +205,77 @@ enum feedback_status {
 }
 
 model feedback_request {
-  id           String        @id @default(uuid())
-  orderId      String        @unique
-  userId       String
-  status       feedback_status @default(pending)
-  feedback_submitted     Boolean   @default(false)
-  skip_count    Int      @default(0)
-  price        Float
-  notifiedAt   DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  
-  order        Order         @relation(fields: [orderId], references: [id])
-  user         User          @relation(fields: [userId], references: [id])
+  id                 String          @id @default(uuid())
+  orderId            String          @unique
+  userId             String
+  status             feedback_status @default(pending)
+  feedback_submitted Boolean         @default(false)
+  skip_count         Int             @default(0)
+  price              Float
+  notifiedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
-   @@index([status, createdAt])
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
 }
 
-
 model feedback {
-  id          String     @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String
-  productid      String
-  rating      Int?    
+  productid   String
+  rating      Int?
   message     String?
   submittedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user        User      @relation(fields: [userId], references: [id])
-  teffproduct      TeffProduct     @relation(fields: [productid], references: [id])
+  user              User                @relation(fields: [userId], references: [id])
+  teffproduct       TeffProduct         @relation(fields: [productid], references: [id])
   feedbackanalytics FeedbackAnalytics[]
 
   @@index([productid])
 }
 
-
 model FeedbackAnalytics {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   teffTypeId  String
   qualityId   String?
   packagingId String?
   feedbackId  String
   rating      Int
 
-  feedback     feedback @relation(fields: [feedbackId], references: [id])
+  feedback feedback @relation(fields: [feedbackId], references: [id])
+
   @@index([teffTypeId, qualityId, packagingId])
 }
 
+model Area {
+  id        String @id @default(uuid())
+  name      String
+  baseFee   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  users     User[]
+}
+
+
 
 model Cart {
-  id             String       @id @default(uuid())
-  userId         String
-  productId      String
-  quantity       Int           @default(1)
-  packaging       Int           @default(1)    // e.g. 5, 10, 15 (kg)
-  product        TeffProduct   @relation(fields: [productId], references: [id])
-  user           User          @relation(fields: [userId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id        String      @id @default(uuid())
+  userId    String
+  productId String
+  quantity  Int         @default(1)
+  packaging Int         @default(1) // e.g. 5, 10, 15 (kg)
+  product   TeffProduct @relation(fields: [productId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  @@unique([userId, productId , packaging]) // 👈 prevents duplicates for same size
+  @@unique([userId, productId, packaging]) // 👈 prevents duplicates for same size
 }
 
 //for feedback i want is after a user order completed it will send notification for user 
@@ -267,35 +287,33 @@ model Cart {
 
 // }
 model OrderTracking {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
-  status    Status       @default(pending)  // "placed", "confirmed", "packing", "out_for_delivery", "delivered"
-  title     String   // Ex: "Order Placed"
-  timestamp DateTime?  // initially null, updated when status is reached
-  createdAt DateTime @default(now())
+  order     Order     @relation(fields: [orderId], references: [id])
+  status    Status    @default(pending) // "placed", "confirmed", "packing", "out_for_delivery", "delivered"
+  title     String // Ex: "Order Placed"
+  timestamp DateTime? // initially null, updated when status is reached
+  createdAt DateTime  @default(now())
 }
 
-
-
 model PaymentIntent {
-  id             String               @id @default(uuid())
+  id             String   @id @default(uuid())
   orderId        String
-  userId        String
+  userId         String
   amount         Float
-  currency       String               @default("ETB")
+  currency       String   @default("ETB")
   method         String
-  status         String               @default("PENDING")
-  providerId     String?              
+  status         String   @default("PENDING")
+  providerId     String?
   clientSecret   String?
-  metadata       Json                 @default("{}")
-  idempotencyKey String?              @unique
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  metadata       Json     @default("{}")
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  order          Order                @relation(fields: [orderId], references: [id])
-  user          User                 @relation(fields: [userId], references: [id])
-  transactions   PaymentTransaction[]
+  order        Order                @relation(fields: [orderId], references: [id])
+  user         User                 @relation(fields: [userId], references: [id])
+  transactions PaymentTransaction[]
 
   @@index([userId])
   @@index([orderId])
@@ -303,25 +321,24 @@ model PaymentIntent {
   @@index([idempotencyKey])
 }
 
-
 // -------------------- Payment Transactions --------------------
 model PaymentTransaction {
-  id              String          @id @default(uuid())
+  id              String   @id @default(uuid())
   orderId         String
-  paymentIntentId String?         
+  paymentIntentId String?
   provider        String
   providerRef     String?
   amountCents     Int
-  currency        String          @default("ETB")
+  currency        String   @default("ETB")
   status          String
   rawPayload      Json?
-  type            String          @default("CAPTURE")
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  type            String   @default("CAPTURE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   idempotencyKey  String?
 
-  order           Order           @relation(fields: [orderId], references: [id])
-  paymentIntent   PaymentIntent?  @relation(fields: [paymentIntentId], references: [id])
+  order         Order          @relation(fields: [orderId], references: [id])
+  paymentIntent PaymentIntent? @relation(fields: [paymentIntentId], references: [id])
 
   @@index([orderId])
   @@index([provider, providerRef])
@@ -334,16 +351,17 @@ enum idempotencyKeyStatus {
   SUCCESS
   FAILURE
 }
+
 // -------------------- Idempotency Keys --------------------
 model IdempotencyKey {
-  id           String    @id @default(uuid())
+  id           String               @id @default(uuid())
   key          String
   operation    String
   requestHash  String
   responseData Json?
-  status       idempotencyKeyStatus    @default(PENDING) // PENDING | SUCCEEDED | FAILED
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status       idempotencyKeyStatus @default(PENDING) // PENDING | SUCCEEDED | FAILED
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   expiresAt    DateTime
 
   @@unique([key, operation])
@@ -351,33 +369,24 @@ model IdempotencyKey {
   @@index([status])
 }
 
-
-
-
-
-
-
 // payment model can be added later when integrating payment gateway
 
- /* model Payment_initent {
-  id            String     @id @default(uuid())
-  orderId       String
-  amount        Float
-  currency      String
-  status        String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  order         Order     @relation(fields: [orderId], references: [id])  
-  
-}
-
-// indmpotency key
-model indempotencyKey {
-  id            String     @id @default(uuid())
-  key           String     @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-} */
-
+/**
+ * model Payment_initent {
+ * id            String     @id @default(uuid())
+ * orderId       String
+ * amount        Float
+ * currency      String
+ * status        String
+ * createdAt     DateTime  @default(now())
+ * updatedAt     DateTime  @updatedAt
+ * order         Order     @relation(fields: [orderId], references: [id])
+ * }
+ * // indmpotency key
+ * model indempotencyKey {
+ * id            String     @id @default(uuid())
+ * key           String     @unique
+ * createdAt     DateTime  @default(now())
+ * updatedAt     DateTime  @updatedAt
+ * }
+ */
