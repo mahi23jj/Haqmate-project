@@ -148,6 +148,7 @@ enum Status {
 
 model Order {
   id           String       @id @default(uuid())
+  merchOrderId  String   @unique
   userId       String
   status       Status       @default(pending)
   totalAmount  Float
@@ -164,6 +165,8 @@ model Order {
   feedback_request   feedback_request[]
   paymentIntents      PaymentIntent[]
   paymentTransactions PaymentTransaction[]
+  orderTrackings      OrderTracking[]
+
 
 
   @@index([deliveryDate])
@@ -263,6 +266,17 @@ model Cart {
 //   FAILED
 
 // }
+model OrderTracking {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  status    Status       @default(pending)  // "placed", "confirmed", "packing", "out_for_delivery", "delivered"
+  title     String   // Ex: "Order Placed"
+  timestamp DateTime?  // initially null, updated when status is reached
+  createdAt DateTime @default(now())
+}
+
+
 
 model PaymentIntent {
   id             String               @id @default(uuid())

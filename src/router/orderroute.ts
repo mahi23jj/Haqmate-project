@@ -73,36 +73,40 @@ router.get("/average", orderMiddleware, async (req: Request, res: Response) => {
 
 
 router.get(
-    "/filterbystatus/:status",
-    async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const status = req.params.status as string;
+  "/",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Optional status query parameter
+      const statusParam = req.query.status as string | undefined;
+      let statusEnum: Status | undefined;
 
-            // change string to Status enum
-            const statusEnum = Status[status.toUpperCase() as keyof typeof Status];
+      if (statusParam) {
+        statusEnum = Status[statusParam.toUpperCase() as keyof typeof Status];
 
-            // // Optional: vidate status
-            const validStatuses: Status[] = [
-                Status.PENDING,
-                Status.FAILED,
-                Status.PAID,
-                Status.DELIVERED,
-                Status.COMPLETED,
-                Status.CANCELLED,
-                Status.REFUNDED
-            ];
+        const validStatuses: Status[] = [
+          Status.PENDING,
+          Status.FAILED,
+          Status.PAID,
+          Status.DELIVERED,
+          Status.COMPLETED,
+          Status.CANCELLED,
+          Status.REFUNDED
+        ];
 
-            if (!validStatuses.includes(statusEnum)) {
-                return res.status(400).json({ error: "Invalid status value" });
-            }
-
-            const ordersList = await orders.filterByStatus(statusEnum);
-            res.status(200).json(ordersList);
-        } catch (error) {
-            next(error);
+        if (!statusEnum || !validStatuses.includes(statusEnum)) {
+          return res.status(400).json({ error: "Invalid status value" });
         }
+      }
+
+      // Fetch orders (all or filtered by status)
+      const ordersList = await orders.getOrdersWithTracking(statusEnum);
+      res.status(200).json(ordersList);
+    } catch (error) {
+      next(error);
+    }
   }
 );
+
 
 
 router.post(

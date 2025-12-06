@@ -1,7 +1,8 @@
 
-import { PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../utils/apperror.js';
 import type { Product } from './productservice.js';
+
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export interface OrderItemInput {
@@ -42,16 +43,6 @@ export interface OrderResponse {
 }
 
 
-// Define the interface for an order response
-
-
-// Input type for creating an order item
-
-
-// Implementation of OrderService
-
-
-
 export interface OrderService {
     createOrder(
         userId: string,
@@ -65,7 +56,8 @@ export interface OrderService {
     getOrdersByUserId(userId: string): Promise<OrderResponse[]>;
     cancelOrder(id: string): Promise<void>;
     // filter orders by status could be added here
-    filterByStatus(status: string): Promise<OrderResponse[]>;
+    getOrdersWithTracking(status?: Status): Promise<any[]>;
+    getordersdetail(orderid: string): Promise<any>;
 
     createMultiOrder(
         userId: string,
@@ -76,48 +68,115 @@ export interface OrderService {
         phoneChange?: boolean
     ): Promise<OrderResponse>;
 
+    createordertraking(orderid: string): Promise<void>;
+    updateordertraking(orderid: string, status: Status): Promise<void>;
+
 }
 
 export class OrderServiceImpl implements OrderService {
 
 
-    async filterByStatus(status: Status): Promise<OrderResponse[]> {
+    async getOrdersWithTracking(status?: Status): Promise<any[]> {
         const orders = await prisma.order.findMany({
-            where: { status },
+            where: status ? { status } : {}, // filter if status is provided
             include: {
                 items: {
                     include: {
                         product: {
-                            select: { name: true },
+                            select: {
+                                id: true,
+                                name: true,
+                                images: { take: 1, select: { url: true } } // get first image
+                            },
                         },
+                    },
+                },
+                orderTrackings: {  // include order tracking
+                    orderBy: { createdAt: "asc" },
+                    select: {
+                        status: true,
+                        title: true,
+                        timestamp: true,
                     },
                 },
             },
             orderBy: { createdAt: "desc" },
         });
 
-        // Map Prisma result -> OrderResponse
+        // Map Prisma result -> OrderResponse with tracking
         return orders.map(order => ({
             id: order.id,
-            userId: order.userId,
-            phoneNumber: order.phoneNumber,
-            location: order.location,
             totalAmount: order.totalAmount,
             status: order.status,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             items: order.items.map(item => ({
+                product: {
+                    id: item.product.id,
+                    name: item.product.name,
+                    images: item.product.images,
+                },
+            })),
+            
+        }));
+    }
+
+
+    async getordersdetail(orderid: string): Promise<any> {
+
+        const order = await prisma.order.findUnique({
+            where: { id: orderid }, // filter if status is provided
+            include: {
+                items: {
+                    include: {
+                        product: {
+                            select: {
+                                name: true,
+                                images: { take: 1, select: { url: true } }
+
+                            },
+                        },
+                    },
+                },
+                orderTrackings: {  // include order tracking
+                    orderBy: { createdAt: "asc" },
+                    select: {
+                        status: true,
+                        title: true,
+                        timestamp: true,
+                    },
+                },
+            },
+        });
+
+        // Map Prisma result -> OrderResponse with tracking
+        return {
+            id: order!.id,
+            userId: order!.userId,
+            phoneNumber: order!.phoneNumber,
+            location: order!.location,
+            totalAmount: order!.totalAmount,
+            status: order!.status,
+            createdAt: order!.createdAt,
+            updatedAt: order!.updatedAt,
+            items: order!.items.map(item => ({
                 id: item.id,
                 quantity: item.quantity,
                 price: item.price,
                 packagingsize: item.packaging,
                 product: {
                     name: item.product.name,
+                    images: item.product.images,
                 },
             })),
-        }));
-    }
+            tracking: order!.orderTrackings.map(track => ({
+                status: track.status,
+                title: track.title,
+                timestamp: track.timestamp,
+            })),
+        };
 
+    }
 
     async createOrder(
         userId: string,
@@ -164,6 +223,8 @@ export class OrderServiceImpl implements OrderService {
         const quantity = product.quantity ?? 1;
         const totalAmount = prod.pricePerKg * quantity * product.packagingsize;
 
+
+
         // Create order with items
         const order = await prisma.order.create({
             data: {
@@ -171,7 +232,7 @@ export class OrderServiceImpl implements OrderService {
                 phoneNumber,
                 location,
                 totalAmount,
-                status: "pending",
+                status: Status.PENDING,
                 items: {
                     create: {
                         productId: prod.id,
@@ -256,26 +317,25 @@ export class OrderServiceImpl implements OrderService {
 
 
 
-async createMultiOrder(
-    userId: string,
-    product: OrderItemInput[],
-    location?: string,
-    phoneNumber?: string,
-    locationChange?: boolean,
-    phoneChange?: boolean
-): Promise<any> {
+    async createMultiOrder(
+        userId: string,
+        product: OrderItemInput[],
+        location?: string,
+        phoneNumber?: string,
+        locationChange?: boolean,
+        phoneChange?: boolean
+    ): Promise<any> {
 
-    // 1. Get user info once
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { location: true, phoneNumber: true },
-    });
+        // 1. Get user info once
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { location: true, phoneNumber: true },
+        });
 
-    if (!user) throw new Error("User not found");
+        if (!user) throw new Error("User not found");
 
-
-    // Fallback to existing values
-   if (location && locationChange) {
+        // 2. Update location & phone number if flagged
+        if (location && locationChange) {
             await prisma.user.update({
                 where: { id: userId },
                 data: { location },
@@ -284,7 +344,6 @@ async createMultiOrder(
             location = user.location ?? "";
         }
 
-        // Update phone number if provided and flagged
         if (phoneNumber && phoneChange) {
             await prisma.user.update({
                 where: { id: userId },
@@ -294,72 +353,136 @@ async createMultiOrder(
             phoneNumber = user.phoneNumber ?? "";
         }
 
+        // 3. Prepare order items & calculate totalAmount
+        let totalAmount = 0;
+        const orderItems = [];
 
-    // 3. Prepare order items & calculate totalAmount
-    let totalAmount = 0;
-    const orderItems = [];
+        for (const item of product) {
+            const prod = await prisma.teffProduct.findUnique({
+                where: { id: item.productId },
+                select: { id: true, pricePerKg: true }
+            });
 
-    for (const item of product) {
-        const prod = await prisma.teffProduct.findUnique({
-            where: { id: item.productId },
-            select: { id: true, pricePerKg: true }
-        });
+            if (!prod) throw new Error("Product not found");
 
-        if (!prod) throw new Error("Product not found");
+            const quantity = item.quantity ?? 1;
+            const itemTotal = prod.pricePerKg * quantity * item.packagingsize;
+            totalAmount += itemTotal;
 
-        const quantity = item.quantity ?? 1;
-        const itemTotal = prod.pricePerKg * quantity * item.packagingsize;
-        totalAmount += itemTotal;
+            orderItems.push({
+                productId: item.productId,
+                packaging: item.packagingsize,
+                quantity,
+                price: itemTotal,
+            });
+        }
 
-        orderItems.push({
-            productId: item.productId,
-            packaging: item.packagingsize,
-            quantity,
-            price: itemTotal,
-        });
-    }
-
-    // 4. Create order
-    const order = await prisma.order.create({
-        data: {
-            userId,
-            phoneNumber,
-            location,
-            totalAmount,
-            status: "pending",
-            items: { create: orderItems },
-        },
-        select: {
-            id: true,
-            userId: true,
-            status: true,
-            totalAmount: true,
-            location: true,
-            phoneNumber: true,
-            deliveryDate: true,
-            createdAt: true,
-            updatedAt: true,
-            items: {
-                select: {
-                    // id: true,
-                    packaging: true,
-                    quantity: true,
-                    price: true,
-                    product: {
-                        select: {
-                            id: true,
-                            name: true,
-                            pricePerKg: true,
-                            images: true,
+        // 4. Create order
+        const order = await prisma.order.create({
+            data: {
+                userId,
+                phoneNumber,
+                location,
+                totalAmount,
+                status: "pending",
+                items: { create: orderItems },
+            },
+            select: {
+                id: true,
+                userId: true,
+                status: true,
+                totalAmount: true,
+                location: true,
+                phoneNumber: true,
+                deliveryDate: true,
+                createdAt: true,
+                updatedAt: true,
+                items: {
+                    select: {
+                        packaging: true,
+                        quantity: true,
+                        price: true,
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                pricePerKg: true,
+                                images: true,
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
 
-    return order;
-}
+        // 5. Initialize order tracking immediately
+        const trackingSteps = [
+            { status: "pending", title: "Order Placed" },
+            { status: "paid", title: "Order Confirmed" },
+            { status: "failed", title: "Order Failed" },
+            { status: "delivered", title: "Delivered" },
+            { status: "completed", title: "Order Completed" },
+            { status: "cancelled", title: "Order Cancelled" },
+            { status: "refunded", title: "Order Refunded" }
+        ];
+
+        await prisma.orderTracking.createMany({
+            data: trackingSteps.map(step => ({
+                orderId: order.id,
+                status: step.status,
+                title: step.title,
+                timestamp: step.status === "pending" ? new Date() : null // only PENDING gets initial timestamp
+            }))
+        });
+
+        return order;
+    }
+
+
+
+
+    async createordertraking(orderid: string): Promise<void> {
+        const trackingSteps = [
+            { status: Status.PENDING, title: "Order Placed" },
+            { status: Status.PAID, title: "Order Confirmed" },
+            { status: Status.FAILED, title: "Order failed" },
+            { status: Status.DELIVERED, title: "Delivered" },
+            { status: Status.COMPLETED, title: "Order Completed" },
+            { status: Status.CANCELLED, title: "Order Cancelled" },
+            { status: Status.REFUNDED, title: "Order Refunded" }
+        ];
+
+
+
+        // Bulk create tracking entries with timestamp = null
+        await prisma.orderTracking.createMany({
+            data: trackingSteps.map(step => ({
+                orderId: orderid,
+                status: step.status,
+                title: step.title,
+                timestamp: step.status === Status.PENDING ? new Date() : null, // set initial placed timestamp
+            }))
+        });
+
+    }
+
+
+    async updateordertraking(orderId: string, status: Status) {
+
+        await prisma.orderTracking.updateMany({
+            where: { orderId, status },
+            data: { timestamp: new Date() }
+        });
+
+        /* // Optionally update Order table's status field too
+        await prisma.order.update({
+          where: { id: orderId },
+          data: {status }
+        }); */
+    }
+
+
+
 
 
 }

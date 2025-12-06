@@ -2,10 +2,102 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 import axios from "axios";
 import https from "https";
-import { applyFabricToken } from "../service/paymentservice.js";
+import { applyFabricToken, verifyWebhookSignature } from "../service/paymentservice.js";
 import { config } from "../config.js";
 import * as tools from "../utils/tools.js";
-import type { Request, Response, NextFunction } from "express";
+import { type Request, type Response, type NextFunction, Router } from "express";
+import { PrismaClient } from '@prisma/client';
+
+
+const prisma = new PrismaClient();
+const router = Router();
+
+
+
+
+router.post("/telebirr/webhook", async (req, res) =>  {
+  const signature = req.headers["x-signature"]; // Telebirr header
+   const rawBody = req.body; 
+   //const rawBody = req.rawbody; ??????
+
+  const TELEBIRR_PUBLIC_KEY = `
+-----BEGIN PUBLIC KEY-----
+YOUR_PUBLIC_KEY_HERE
+-----END PUBLIC KEY-----
+`;
+
+  const valid = verifyWebhookSignature(rawBody, signature, TELEBIRR_PUBLIC_KEY);
+
+  if (!valid) {
+    console.log("❌ Telebirr: Invalid signature");
+    return res.status(400).send("Invalid signature");
+  }
+
+  console.log("✅ Telebirr signature OK");
+  const payload = req.body;
+
+
+   const merchOrderId = payload.merch_order_id;
+
+    // 2. Find order
+    const order = await prisma.order.findUnique({
+      where: { id: merchOrderId },
+    });
+
+    if (!order) return res.status(404).send("Order not found");
+
+    // 3. Check payment status
+    if (payload.trade_status === "SUCCESS") {
+      await prisma.order.update({
+        where: { id:merchOrderId },
+        data: { status: "paid" }
+      });
+
+      await prisma.orderTracking.create({
+        data: {
+          orderId: order.id,
+          title: "Paid",
+          status: "paid",
+          timestamp: new Date()
+        }
+      });
+    }
+
+    if (payload.trade_status === "FAILED") {
+      await prisma.order.update({
+        where: { id:merchOrderId },
+        data: { status: "failed" }
+      });
+    }
+
+    res.send("SUCCESS");
+
+  // process payment
+  // save to DB etc.
+
+  return res.send("success");
+});
+
+
+// {
+//   try {
+//     const payload = req.body;
+
+//     // 1. Verify signature
+//     const isValid = verifyWebhookSignature(payload);
+
+//     if (!isValid) {
+//       console.log("Invalid signature");
+//       return res.status(400).send("Invalid signature");
+//     }
+
+   
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send("webhook failed");
+//   }
+// });
+
 
 // 1️⃣ Authenticate user and get authToken
 export async function authToken(req: Request, res: Response) {
