@@ -20,17 +20,20 @@ datasource db {
 }
 
 model User {
-  id               String             @id @default(uuid())
+  id               String    @id @default(uuid())
   name             String
-  email            String
-  emailVerified    Boolean            @default(false)
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
   image            String?
 
-  location          String
+  areaId           String
   phoneNumber      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @default(now()) @updatedAt
-  area               Area                @relation(fields: [location], references: [id])
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  area             Area      @relation(fields: [areaId], references: [id])
+
   sessions         Session[]
   accounts         Account[]
   cart             Cart[]
@@ -39,7 +42,6 @@ model User {
   feedback         feedback[]
   paymentIntents   PaymentIntent[]
 
-  @@unique([email])
   @@map("user")
 }
 
@@ -237,6 +239,7 @@ model feedback {
   feedbackanalytics FeedbackAnalytics[]
 
   @@index([productid])
+  @@unique([userId, productid])
 }
 
 model FeedbackAnalytics {

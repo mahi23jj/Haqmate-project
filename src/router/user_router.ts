@@ -4,6 +4,7 @@ import { auth } from "../../lib/auth.js";
 import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
 import { loginSchema, registerSchema } from "../validation/auth_validation.js";
+import { locationMiddleware } from "../middleware/ordermiddleware.js";
 const prisma = new PrismaClient();
 
 export const usersRouter = Router();
@@ -62,8 +63,11 @@ usersRouter.post("/logout",
 // register 
 usersRouter.post("/signup",
   validate(registerSchema),
+  locationMiddleware,
   async (req, res) => {
     const { username, email, password, location, phoneNumber } = req.body;
+
+
 
     try {
       // 1️⃣ Sign up with Better Auth
@@ -83,7 +87,7 @@ usersRouter.post("/signup",
         await prisma.user.update({
           where: { id: userId },
           data: {
-            location,
+            areaId:location.id,
             phoneNumber,
           },
         });

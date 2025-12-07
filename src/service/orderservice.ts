@@ -1,5 +1,6 @@
 
 import { NotFoundError } from '../utils/apperror.js';
+import { DeliveryServiceImpl, type ExtraDistanceLevel } from './delivery.js';
 import type { Product } from './productservice.js';
 
 import { PrismaClient } from '@prisma/client';
@@ -47,6 +48,7 @@ export interface OrderService {
     createOrder(
         userId: string,
         product: OrderItemInput,
+        extraDistance?: ExtraDistanceLevel,
         location?: string,
         phoneNumber?: string,
         locationChange?: boolean | false,
@@ -62,6 +64,7 @@ export interface OrderService {
     createMultiOrder(
         userId: string,
         product: OrderItemInput[],
+        extraDistance?: ExtraDistanceLevel,
         location?: string,
         phoneNumber?: string,
         locationChange?: boolean,
@@ -99,6 +102,7 @@ export class OrderServiceImpl implements OrderService {
                         timestamp: true,
                     },
                 },
+              
             },
             orderBy: { createdAt: "desc" },
         });
@@ -108,7 +112,7 @@ export class OrderServiceImpl implements OrderService {
             id: order.id,
             totalAmount: order.totalAmount,
             status: order.status,
-            merchantOrderId : order.merchOrderId,
+            merchantOrderId: order.merchOrderId,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             items: order.items.map(item => ({
@@ -118,7 +122,7 @@ export class OrderServiceImpl implements OrderService {
                     images: item.product.images,
                 },
             })),
-            
+
         }));
     }
 
@@ -147,6 +151,11 @@ export class OrderServiceImpl implements OrderService {
                         timestamp: true,
                     },
                 },
+                  area: {
+                    select: {
+                        name: true,
+                    }
+                }
             },
         });
 
@@ -155,12 +164,13 @@ export class OrderServiceImpl implements OrderService {
             id: order!.id,
             userId: order!.userId,
             phoneNumber: order!.phoneNumber,
-            location: order!.location,
+            location: order!.area.name,
+            deliveryfee: order!.totalDeliveryFee,
             totalAmount: order!.totalAmount,
             status: order!.status,
             createdAt: order!.createdAt,
             updatedAt: order!.updatedAt,
-            merchantOrderId : order!.merchOrderId,
+            merchantOrderId: order!.merchOrderId,
             items: order!.items.map(item => ({
                 id: item.id,
                 quantity: item.quantity,
@@ -183,6 +193,7 @@ export class OrderServiceImpl implements OrderService {
     async createOrder(
         userId: string,
         product: OrderItemInput,
+        extraDistance?: ExtraDistanceLevel,
         location?: string,
         phoneNumber?: string,
         locationChange?: boolean,
@@ -191,7 +202,7 @@ export class OrderServiceImpl implements OrderService {
         // Fetch user data
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { location: true, phoneNumber: true },
+            select: { areaId: true, phoneNumber: true },
         });
 
         if (!user) throw new Error("User not found");
@@ -200,10 +211,10 @@ export class OrderServiceImpl implements OrderService {
         if (location && locationChange) {
             await prisma.user.update({
                 where: { id: userId },
-                data: { location },
+                data: { areaId: location },
             });
         } else {
-            location = user.location ?? "";
+            location = user.areaId ?? "";
         }
 
         // Update phone number if provided and flagged
@@ -215,6 +226,20 @@ export class OrderServiceImpl implements OrderService {
         } else {
             phoneNumber = user.phoneNumber ?? "";
         }
+
+        // get delivery charge based on extraDistance if needed
+        let deliveryCharge = 0;
+        let deliveryInfo;
+        const deliveryService = new DeliveryServiceImpl();
+        if (extraDistance) {
+            deliveryInfo = await deliveryService.deliverycharge(location, extraDistance);
+
+        } else {
+            deliveryInfo = await deliveryService.deliverycharge(location);
+        }
+
+        deliveryCharge = deliveryInfo.totalFee;
+
 
         // Fetch product
         const prod = await prisma.teffProduct.findUnique({
@@ -232,10 +257,11 @@ export class OrderServiceImpl implements OrderService {
             data: {
                 userId,
                 phoneNumber,
-                location,
+                areaId: location,
                 totalAmount,
                 status: Status.PENDING,
-                merchOrderId : 'MORD' + Date.now().toString(), // Example merch order ID
+                merchOrderId: 'MORD' + Date.now().toString(), // Example merch order ID
+                totalDeliveryFee: deliveryCharge,
                 items: {
                     create: {
                         productId: prod.id,
@@ -261,7 +287,7 @@ export class OrderServiceImpl implements OrderService {
             id: order.id,
             userId: order.userId,
             phoneNumber: order.phoneNumber,
-            location: order.location,
+            location: order.areaId,
             totalAmount: order.totalAmount,
             status: order.status as OrderResponse["status"],
             createdAt: order.createdAt,
@@ -323,14 +349,53 @@ export class OrderServiceImpl implements OrderService {
     async createMultiOrder(
         userId: string,
         product: OrderItemInput[],
+        extraDistance?: ExtraDistanceLevel,
         location?: string,
         phoneNumber?: string,
         locationChange?: boolean,
         phoneChange?: boolean
     ): Promise<any> {
+                 const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { areaId: true, phoneNumber: true },
+        });
 
+        if (!user) throw new Error("User not found");
+
+        // Update location if provided and flagged
+        if (location && locationChange) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { areaId: location },
+            });
+        } else {
+            location = user.areaId ?? "";
+        }
+
+        // Update phone number if provided and flagged
+        if (phoneNumber && phoneChange) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { phoneNumber },
+            });
+        } else {
+            phoneNumber = user.phoneNumber ?? "";
+        }
+
+        // get delivery charge based on extraDistance if needed
+        let deliveryCharge = 0;
+        let deliveryInfo;
+        const deliveryService = new DeliveryServiceImpl();
+        if (extraDistance) {
+            deliveryInfo = await deliveryService.deliverycharge(location, extraDistance);
+
+        } else {
+            deliveryInfo = await deliveryService.deliverycharge(location);
+        }
+
+        deliveryCharge = deliveryInfo.totalFee;
         // 1. Get user info once
-        const user = await prisma.user.findUnique({
+     /*    const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { location: true, phoneNumber: true },
         });
@@ -355,7 +420,7 @@ export class OrderServiceImpl implements OrderService {
         } else {
             phoneNumber = user.phoneNumber ?? "";
         }
-
+ */
         // 3. Prepare order items & calculate totalAmount
         let totalAmount = 0;
         const orderItems = [];
@@ -380,15 +445,17 @@ export class OrderServiceImpl implements OrderService {
             });
         }
 
+        totalAmount += deliveryCharge;
         // 4. Create order
         const order = await prisma.order.create({
             data: {
                 userId,
                 phoneNumber,
-                location,
+                areaId:location,
+                totalDeliveryFee: deliveryCharge,
                 totalAmount,
                 status: "pending",
-                merchOrderId : 'MORD' + Date.now().toString(), // Example merch order ID
+                merchOrderId: 'MORD' + Date.now().toString(), // Example merch order ID
                 items: { create: orderItems },
             },
             select: {
@@ -396,7 +463,7 @@ export class OrderServiceImpl implements OrderService {
                 userId: true,
                 status: true,
                 totalAmount: true,
-                location: true,
+                areaId: true,
                 phoneNumber: true,
                 deliveryDate: true,
                 createdAt: true,

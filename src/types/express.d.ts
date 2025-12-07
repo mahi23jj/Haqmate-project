@@ -13,6 +13,7 @@ declare global {
     };
     order?: any;
     product?: any;
+    location?: any;
     }
   }
 }

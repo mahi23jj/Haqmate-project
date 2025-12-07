@@ -66,22 +66,22 @@ export async function productMiddleware(req: Request, res: Response, next: NextF
 
 
 export async function locationMiddleware(req: Request, res: Response, next: NextFunction) {
-    const productId = req.body.productId || req.params.productId;
+    const location = req.body.location || req.params.location;
 
-    if (!productId) {
-        return res.status(400).json({ message: "Product ID is required" });
+    if (!location) {
+        return res.status(400).json({ message: "location is required" });
     }
 
     try {
-        const product = await prisma.teffProduct.findUnique({
-            where: { id: productId }
+    const locations = await prisma.area.findUnique({
+            where: { id: location }
         });
 
-        if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+        if (!locations) {
+            return res.status(404).json({ message: "location not found" });
         }
 
-        req.product = product; // attach to request
+        req.location = locations; // attach to request
         next();
     } catch (error) {
         console.error("❌ Product middleware error:", error);
@@ -89,3 +89,8 @@ export async function locationMiddleware(req: Request, res: Response, next: Next
     }
 }
 
+
+// delivery --> integrate order upto payment (at least chapa ) --> profile & about us (use amharic , App Chat Between Customer & Seller mean just make it to call directly.)
+// autentication 
+// fix ui , 
+// backend , languge change and testing

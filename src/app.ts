@@ -13,6 +13,7 @@ import { FeedbackRouter } from './router/feedbackroute.js';
 import { ChapaRouter} from './router/chapa_paymentrouter.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import * as telebirr from './router/paymentroute.js';
+import { DeliveryRouter } from './router/deliveryrouter.js';
 
 export const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/cart', cartRouter);
 app.use('/api/order',OrderRouter);
 app.use('/api/feedback', FeedbackRouter);
 app.use('/api/ payment', ChapaRouter);
+app.use('/api/delivery', DeliveryRouter);
 
 app.post("/apply/h5token", function (req, res) {
   telebirr.authToken(req, res);
