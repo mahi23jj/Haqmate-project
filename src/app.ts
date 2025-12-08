@@ -4,7 +4,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { usersRouter } from './router/user_router.js';
+import { UserRouter} from './router/user_router.js';
 import { config } from './config.js';
 import { productRouter } from './router/productrouter.js';
 import { cartRouter } from './router/cartrouter.js';
@@ -50,7 +50,7 @@ app.use(globalErrorHandler);
 
 // Auth routes with better-auth
 // app.all("/api/auth/*", toNodeHandler(auth));
-app.use('/api', usersRouter);
+app.use('/api', UserRouter);
 app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order',OrderRouter);

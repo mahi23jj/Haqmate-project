@@ -26,13 +26,13 @@ export class DeliveryServiceImpl implements DeliveryService {
   // ✅ Create a new delivery location
   async createlocation(location: string, km: number): Promise<any> {
     try {
-      const existing = await prisma.area.findFirst({
+    /*   const existing = await prisma.area.findFirst({
         where: { name:location }
       });
 
       if (existing) {
         throw new Error("Location already exists");
-      }
+      } */
 
      const basefee = km * 50;
 

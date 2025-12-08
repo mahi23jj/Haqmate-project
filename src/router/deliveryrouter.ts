@@ -9,7 +9,7 @@ import { productMiddleware } from "../middleware/ordermiddleware.js";
 import { DeliveryServiceImpl } from "../service/delivery.js";
 
 const router = Router();
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 const Delivery = new DeliveryServiceImpl();
 

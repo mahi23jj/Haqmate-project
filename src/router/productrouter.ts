@@ -71,7 +71,7 @@ router.post(
   async (req, res, next) => {
     try {
       // req.body is now validated and typed
-      const { name, description, price, teffType, images, quality } = req.body;
+      const { name, description, price, teffType, images, quality , instock } = req.body;
 
       const newProduct = await products.createProduct({
         name,
@@ -80,6 +80,7 @@ router.post(
         teffType,
         images,
         quality,
+        instock,
       });
 
       return res.status(201).json({

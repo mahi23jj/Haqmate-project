@@ -7,7 +7,7 @@ import { loginSchema, registerSchema } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
 const prisma = new PrismaClient();
 
-export const usersRouter = Router();
+const usersRouter = Router();
 
 usersRouter.get("/me", async (req, res) => {
   try {
@@ -62,10 +62,12 @@ usersRouter.post("/logout",
 //abAB12@#"
 // register 
 usersRouter.post("/signup",
-  validate(registerSchema),
   locationMiddleware,
+  validate(registerSchema),
   async (req, res) => {
-    const { username, email, password, location, phoneNumber } = req.body;
+    const { username, email, password,phoneNumber } = req.body;
+
+    const locationdate = req.location;
 
 
 
@@ -82,12 +84,17 @@ usersRouter.post("/signup",
       // 2️⃣ Get user ID from session (Better Auth returns it)
       const userId = session?.user?.id;
 
+
+      
+
+
+
       // 3️⃣ Update your Prisma user record with extra fields
       if (userId) {
         await prisma.user.update({
           where: { id: userId },
           data: {
-            areaId:location.id,
+            areaId:locationdate.id,
             phoneNumber,
           },
         });
@@ -98,7 +105,7 @@ usersRouter.post("/signup",
         message: "Signup successful",
         user: {
           ...session.user,
-          location,
+          location: locationdate.name,
           phoneNumber,
         },
         token: session.token,
@@ -116,3 +123,7 @@ usersRouter.post("/forget-password", async (req, res) => {
   const { email } = req.body;
 })
   });
+
+
+
+export { usersRouter as UserRouter };

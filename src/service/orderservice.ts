@@ -453,6 +453,7 @@ export class OrderServiceImpl implements OrderService {
                 phoneNumber,
                 areaId:location,
                 totalDeliveryFee: deliveryCharge,
+                extraDistanceLevel : extraDistance!,
                 totalAmount,
                 status: "pending",
                 merchOrderId: 'MORD' + Date.now().toString(), // Example merch order ID

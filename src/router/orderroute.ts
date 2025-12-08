@@ -1,7 +1,7 @@
 import { Router, request } from "express";
 import { OrderServiceImpl, Status } from "../service/orderservice.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
-import { orderMiddleware } from "../middleware/ordermiddleware.js";
+import { orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
 import type { Request, Response, NextFunction } from "express";
 import { createMultiorderSchema } from "../validation/order_validation.js";
 import { validate } from "../middleware/validate.js";
@@ -12,15 +12,19 @@ router.use(authMiddleware);
 const orders = new OrderServiceImpl();
 
 // POST /order/create - Create a new order
-router.post("/create", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/create",
+    productMiddleware
+    , async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user;
+
+        const productId = req.product;
 
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        const { productId, packagingsize, quantity, shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
+        const { packagingsize, quantity, shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
 
         const items = { productId, packagingsize, quantity };
 

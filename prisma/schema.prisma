@@ -26,13 +26,13 @@ model User {
   emailVerified    Boolean   @default(false)
   image            String?
 
-  areaId           String
+  areaId           String?
   phoneNumber      String?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  area             Area      @relation(fields: [areaId], references: [id])
+  area             area?      @relation(fields: [areaId], references: [id])
 
   sessions         Session[]
   accounts         Account[]
@@ -154,7 +154,7 @@ model Order {
   totalAmount        Float
 
   areaId             String
-  area               Area                @relation(fields: [areaId], references: [id])
+  area               area                @relation(fields: [areaId], references: [id])
   phoneNumber        String
 
   // Delivery details
@@ -255,7 +255,7 @@ model FeedbackAnalytics {
   @@index([teffTypeId, qualityId, packagingId])
 }
 
-model Area {
+model area {
   id        String @id @default(uuid())
   name      String
   baseFee   Int

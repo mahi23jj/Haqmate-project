@@ -172,7 +172,7 @@ export class ProductServiceImpl implements ProductService {
           description: data.description,
           pricePerKg: data.price,
           teffType: { connect: { id: newtype.id } },
-          instock: true,
+          inStock: data.instock ?? true,
           discount : data.discount ?? null
         };
 
