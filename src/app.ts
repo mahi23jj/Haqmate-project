@@ -55,7 +55,7 @@ app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order',OrderRouter);
 app.use('/api/feedback', FeedbackRouter);
-app.use('/api/ payment', ChapaRouter);
+app.use('/api/payment', ChapaRouter);
 app.use('/api/delivery', DeliveryRouter);
 
 app.post("/apply/h5token", function (req, res) {

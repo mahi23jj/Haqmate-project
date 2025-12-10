@@ -64,11 +64,9 @@ export interface OrderService {
     createMultiOrder(
         userId: string,
         product: OrderItemInput[],
+        location: string,
+        phoneNumber: string,
         extraDistance?: ExtraDistanceLevel,
-        location?: string,
-        phoneNumber?: string,
-        locationChange?: boolean,
-        phoneChange?: boolean
     ): Promise<OrderResponse>;
 
     createordertraking(orderid: string): Promise<void>;
@@ -349,39 +347,11 @@ export class OrderServiceImpl implements OrderService {
     async createMultiOrder(
         userId: string,
         product: OrderItemInput[],
+        location: string,
+        phoneNumber: string,
         extraDistance?: ExtraDistanceLevel,
-        location?: string,
-        phoneNumber?: string,
-        locationChange?: boolean,
-        phoneChange?: boolean
     ): Promise<any> {
-                 const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { areaId: true, phoneNumber: true },
-        });
-
-        if (!user) throw new Error("User not found");
-
-        // Update location if provided and flagged
-        if (location && locationChange) {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { areaId: location },
-            });
-        } else {
-            location = user.areaId ?? "";
-        }
-
-        // Update phone number if provided and flagged
-        if (phoneNumber && phoneChange) {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { phoneNumber },
-            });
-        } else {
-            phoneNumber = user.phoneNumber ?? "";
-        }
-
+        
         // get delivery charge based on extraDistance if needed
         let deliveryCharge = 0;
         let deliveryInfo;
@@ -394,33 +364,7 @@ export class OrderServiceImpl implements OrderService {
         }
 
         deliveryCharge = deliveryInfo.totalFee;
-        // 1. Get user info once
-     /*    const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { location: true, phoneNumber: true },
-        });
 
-        if (!user) throw new Error("User not found");
-
-        // 2. Update location & phone number if flagged
-        if (location && locationChange) {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { location },
-            });
-        } else {
-            location = user.location ?? "";
-        }
-
-        if (phoneNumber && phoneChange) {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { phoneNumber },
-            });
-        } else {
-            phoneNumber = user.phoneNumber ?? "";
-        }
- */
         // 3. Prepare order items & calculate totalAmount
         let totalAmount = 0;
         const orderItems = [];

@@ -176,11 +176,25 @@ export class CartServiceImpl implements CartService {
                             images: { select: { url: true } },
                             teffType: { select: { name: true } },
                             quality: { select: { id: true, name: true } },
+
                             discount: true,
                         },
                     },
                 },
             });
+
+            const userinfo = await prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    area: {
+                        select: {
+                            id: true,
+                            name: true,
+                        }
+                    },
+                    phoneNumber:true
+                }
+            })
 
             const subtotalPrice = cartItems.reduce(
                 (total, item) =>
@@ -188,9 +202,9 @@ export class CartServiceImpl implements CartService {
                 0
             );
 
-            const taxprice = 0.15 * subtotalPrice;
+        /*     const taxprice = 0.15 * subtotalPrice;
 
-            const totalPrice = subtotalPrice + taxprice;
+            const totalPrice = subtotalPrice + taxprice; */
 
             const formattedCart = cartItems.map(item => ({
                 id: item.id,
@@ -212,9 +226,10 @@ export class CartServiceImpl implements CartService {
                         : null
                 }
             }));
+            
+          
 
-
-            return { cart: formattedCart, subtotalPrice , taxprice , totalPrice };
+            return { cart: formattedCart, subtotalPrice , ...userinfo };
         } catch (error) {
             console.error('❌ Error fetching cart items:', error);
             throw error;

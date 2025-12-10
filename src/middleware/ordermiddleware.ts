@@ -8,30 +8,29 @@ const prisma = new PrismaClient();
 
 
 export async function orderMiddleware(req: Request, res: Response, next: NextFunction) {
-    const { id } = req.body;
+  const id = req.params.id || req.body.id;
 
-    if (!id) {
-        return res.status(400).json({ message: "Order id is required" });
-    }
+  if (!id) {
+      return res.status(400).json({ message: "Order id is required" });
+  }
 
-    try {
+  try {
+      const order = await prisma.order.findUnique({
+          where: { id }
+      });
 
-        const order = await prisma.order.findUnique({
-            where: { id: id }
-        });
+      if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+      }
 
-
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        req.order = order;
-        next(); // Proceed to next middleware or route handler
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
-    }
+      req.order = order;
+      next();
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+  }
 }
+
 
 
 

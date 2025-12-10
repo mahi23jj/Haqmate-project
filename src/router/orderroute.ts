@@ -104,12 +104,61 @@ router.get(
 
       // Fetch orders (all or filtered by status)
       const ordersList = await orders.getOrdersWithTracking(statusEnum);
-      res.status(200).json(ordersList);
+    //   res.status(200).json(ordersList);
+
+       return res.status(200).json({
+        status: "success",
+        message: "get all orders",
+        data: ordersList,
+      });
     } catch (error) {
       next(error);
     }
   }
 );
+
+
+router.get(
+  "/:id",
+  orderMiddleware,      // <-- You forgot this
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const order = req.order;
+
+      const statusParam = req.query.status as string | undefined;
+      let statusEnum: Status | undefined;
+
+      if (statusParam) {
+        statusEnum = Status[statusParam.toUpperCase() as keyof typeof Status];
+
+        const validStatuses: Status[] = [
+          Status.PENDING,
+          Status.FAILED,
+          Status.PAID,
+          Status.DELIVERED,
+          Status.COMPLETED,
+          Status.CANCELLED,
+          Status.REFUNDED
+        ];
+
+        if (!statusEnum || !validStatuses.includes(statusEnum)) {
+          return res.status(400).json({ error: "Invalid status value" });
+        }
+      }
+
+      const ordersList = await orders.getordersdetail(order.id);
+
+            return res.status(200).json({
+        status: "success",
+        message: "get all orders",
+        data: ordersList,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 
 
 
@@ -127,8 +176,7 @@ router.post(
                 products,
                 shippinglocation,
                 phoneNumber,
-                locationChange,
-                phoneChange,
+          
             } = req.body;
 
             // Basic validation
@@ -141,8 +189,6 @@ router.post(
                 products,
                 shippinglocation,
                 phoneNumber,
-                locationChange,   // ← Correct placement
-                phoneChange       // ← Correct placement
             );
 
             res.status(201).json(newOrder);
