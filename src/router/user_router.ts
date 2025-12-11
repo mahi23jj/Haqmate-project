@@ -126,4 +126,57 @@ usersRouter.post("/forget-password", async (req, res) => {
 
 
 
+// update location and phone number 
+usersRouter.patch("/update-status", async (req, res) => {
+  try {
+    const userId = req.user; // from auth middleware
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { phoneNumber, locationId } = req.body;
+
+    // Validate input
+    if (!phoneNumber || !locationId) {
+      return res.status(400).json({ error: "phoneNumber and locationId are required" });
+    }
+
+    // Find location
+    const locationData = await prisma.area.findUnique({
+      where: { id: locationId },
+    });
+
+    if (!locationData) {
+      return res.status(400).json({ error: "Invalid location" });
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        areaId: locationData.id,
+        phoneNumber,
+      },
+      include: {
+        area: true, // include updated location info if needed
+      }
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "User status updated successfully",
+      data: updatedUser,
+    });
+
+  } catch (error: any) {
+    return res.status(500).json({
+      status: "error",
+      error: error.message || "Something went wrong",
+    });
+  }
+});
+
+
+
+
 export { usersRouter as UserRouter };

@@ -190,6 +190,7 @@ export class CartServiceImpl implements CartService {
                         select: {
                             id: true,
                             name: true,
+                            baseFee: true,
                         }
                     },
                     phoneNumber:true

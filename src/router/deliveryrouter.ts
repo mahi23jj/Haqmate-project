@@ -27,13 +27,24 @@ router.post("/location", async (req: Request, res: Response) => {
 
 // 📌 Get all locations
 router.get("/location", async (req: Request, res: Response) => {
+  const query = (req.query.query as string) ?? "";  // safe
+  const normalizedQuery = query.toLowerCase();      // safe
+
   try {
-    const locations = await Delivery.getlocation();
-    res.status(200).json({ status: "success", data: locations });
+    const locations = await Delivery.getLocations(normalizedQuery);
+
+    return res.status(200).json({
+      status: "success",
+      data: locations,
+    });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    return res.status(500).json({
+      status: "error",
+      error: error.message || "Error fetching locations",
+    });
   }
 });
+
 
 // 📌 Get one location
 // router.get("/:id", async (req: Request, res: Response) => {

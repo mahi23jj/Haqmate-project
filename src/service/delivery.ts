@@ -11,7 +11,8 @@ export enum ExtraDistanceLevel {
 }
 export interface DeliveryService {
     createlocation(location: string , km: number): Promise<any>;
-    getlocation(): Promise<any>;
+    // getlocation(): Promise<any>;
+    getLocations(query: string): Promise<any>;
     getlocationbyid(id: string): Promise<any>;
     deletelocation(id: string): Promise<any>;
     updatelocation(id: string, location: string, km: number): Promise<any>;
@@ -51,15 +52,31 @@ export class DeliveryServiceImpl implements DeliveryService {
     }
   }
 
-  // ✅ Get all locations
-  async getlocation(): Promise<any> {
-    try {
-      return await prisma.area.findMany();
-    } catch (error) {
-      console.error("❌ Error fetching locations:", error);
-      throw new Error("Error fetching locations");
-    }
+  // ✅ Get all locations by quary
+  async getLocations(query: string): Promise<any> {
+  try {
+    return await prisma.area.findMany({
+      where: {
+        name: {
+          contains: query,
+          mode: "insensitive"   // <-- Case-insensitive filtering
+        }
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error fetching locations:", error);
+    throw new Error("Error fetching locations");
   }
+}
+
+  // async getlocation(): Promise<any> {
+  //   try {
+  //     return await prisma.area.findMany();
+  //   } catch (error) {
+  //     console.error("❌ Error fetching locations:", error);
+  //     throw new Error("Error fetching locations");
+  //   }
+  // }
 
   // ✅ Get one location by ID
   async getlocationbyid(id: string): Promise<any> {
