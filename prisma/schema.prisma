@@ -158,6 +158,8 @@ model Order {
   phoneNumber        String
 
   // Delivery details
+  orderrecived       String
+  paymentMethod      String
   totalDeliveryFee   Int
   extraDeliveryFee   Int                 @default(0)
   extraDistanceLevel ExtraDistanceLevel?

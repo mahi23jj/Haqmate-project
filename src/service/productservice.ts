@@ -76,6 +76,7 @@ export class ProductServiceImpl implements ProductService {
   }
 
 
+
   async getProductById(id: string): Promise<Product> {
     try {
       const prod = await prisma.teffProduct.findUnique({

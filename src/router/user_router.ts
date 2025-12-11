@@ -3,8 +3,9 @@ import { Router } from "express";
 import { auth } from "../../lib/auth.js";
 import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
-import { loginSchema, registerSchema } from "../validation/auth_validation.js";
+import { loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
+import { authMiddleware } from "../middleware/authmiddleware.js";
 const prisma = new PrismaClient();
 
 const usersRouter = Router();
@@ -127,34 +128,26 @@ usersRouter.post("/forget-password", async (req, res) => {
 
 
 // update location and phone number 
-usersRouter.patch("/update-status", async (req, res) => {
+usersRouter.put("/user/update-status", 
+  validate(updatestatus),
+  locationMiddleware,
+  authMiddleware,
+  async (req, res) => {
   try {
     const userId = req.user; // from auth middleware
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { phoneNumber, locationId } = req.body;
+    const location = req.location;
 
-    // Validate input
-    if (!phoneNumber || !locationId) {
-      return res.status(400).json({ error: "phoneNumber and locationId are required" });
-    }
-
-    // Find location
-    const locationData = await prisma.area.findUnique({
-      where: { id: locationId },
-    });
-
-    if (!locationData) {
-      return res.status(400).json({ error: "Invalid location" });
-    }
+    const { phoneNumber } = req.body;
 
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        areaId: locationData.id,
+        areaId: location.id,
         phoneNumber,
       },
       include: {
@@ -165,7 +158,6 @@ usersRouter.patch("/update-status", async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "User status updated successfully",
-      data: updatedUser,
     });
 
   } catch (error: any) {

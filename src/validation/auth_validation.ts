@@ -31,6 +31,12 @@ export const registerSchema = z.object({
     phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" })
 })
 
+
+export const updatestatus = z.object({
+    phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" }).optional(),
+    location: z.string().optional(),
+})
+
 // confirm password confirmPassword: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/).refine((value) => value === registerSchema.shape.password, { message: "passwords do not match" })
 
 

@@ -111,6 +111,76 @@ export class CartServiceImpl implements CartService {
     }
 
 
+
+async updateCartItem(
+  cartid: string,
+  newproductId?: string,
+  newpackaging?: number,
+  newquantity?: number
+): Promise<void> {
+  try {
+    // 1️⃣ Fetch the cart item you're about to update
+    const oldItem = await prisma.cart.findUnique({
+      where: { id: cartid },
+    });
+
+    if (!oldItem) throw new NotFoundError("Cart item not found");
+
+    const finalProductId = newproductId ?? oldItem.productId;
+    const finalPackaging = newpackaging ?? oldItem.packaging;
+
+    // 2️⃣ Check if another cart row already has (same userId, productId, packaging)
+    const duplicate = await prisma.cart.findFirst({
+      where: {
+        userId: oldItem.userId,
+        productId: finalProductId,
+        packaging: finalPackaging,
+        NOT: { id: cartid }, // don't match itself
+      },
+    });
+
+    // MERGE case → if same productId + packaging already exists
+    if (duplicate) {
+      await prisma.cart.update({
+        where: { id: duplicate.id },
+        data: {
+          quantity: duplicate.quantity + (newquantity ?? oldItem.quantity),
+        },
+      });
+
+      // Delete the old row (because values moved to duplicate)
+      await prisma.cart.delete({ where: { id: cartid } });
+
+      console.log("Cart items merged instead of duplicate created.");
+      return;
+    }
+
+    // 3️⃣ Normal update (no duplicate conflict)
+    const updated = await prisma.cart.update({
+      where: { id: cartid },
+      data: {
+        productId: finalProductId,
+        packaging: finalPackaging,
+        quantity: newquantity ?? oldItem.quantity,
+      },
+    });
+
+    console.log("Cart item updated:", updated);
+
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      throw new NotFoundError("Cart item not found!");
+    }
+
+    console.error("❌ Error updating cart item:", error);
+    throw error;
+  }
+}
+
+
+
+
+
     // async updateItempackaging(userId: string, productId: string, packagingsize: number): Promise<void> {
     //     try {
     //         const packaging = await prisma.packaging.upsert({

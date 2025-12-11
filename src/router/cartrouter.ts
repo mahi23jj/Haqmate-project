@@ -63,6 +63,23 @@ router.post("/add_update",
     }
   });
 
+    router.put("/update/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+
+      const cartid = req.params.id ?? '';
+
+      const { updatedproductid , updatedpackagingsize , updatedquantity } = req.body;
+
+      await Carts.updateCartItem( cartid ,updatedproductid , updatedpackagingsize , updatedquantity);
+
+      res.status(200).json({ message: "Item quantity updated successfully" });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
 
 // Remove an item from the cart
 router.delete("/remove", async (req: Request, res: Response, next: NextFunction) => {

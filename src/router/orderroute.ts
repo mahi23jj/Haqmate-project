@@ -1,7 +1,7 @@
 import { Router, request } from "express";
 import { OrderServiceImpl, Status } from "../service/orderservice.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
-import { orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
+import { locationMiddleware, orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
 import type { Request, Response, NextFunction } from "express";
 import { createMultiorderSchema } from "../validation/order_validation.js";
 import { validate } from "../middleware/validate.js";
@@ -12,66 +12,66 @@ router.use(authMiddleware);
 const orders = new OrderServiceImpl();
 
 // POST /order/create - Create a new order
-router.post("/create",
-    productMiddleware
-    , async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user;
+// router.post("/create",
+//     productMiddleware
+//     , async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const userId = req.user;
 
-        const productId = req.product;
+//         const productId = req.product;
 
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
+//         if (!userId) {
+//             return res.status(401).json({ error: "Unauthorized" });
+//         }
 
-        const { packagingsize, quantity, shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
+//         const { packagingsize, quantity, shippinglocation, phoneNumber, phoneChange, locationChange } = req.body;
 
-        const items = { productId, packagingsize, quantity };
+//         const items = { productId, packagingsize, quantity };
 
-        const newOrder = await orders.createOrder(userId, items, shippinglocation, phoneNumber, phoneChange, locationChange);
-        res.status(201).json(newOrder);
-    } catch (error) {
-        next(error);
-    }
-});
-
-
-router.get("/me", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user;
-
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-
-        const order = await orders.getOrdersByUserId(userId);
-        res.status(200).json(order);
-
-    } catch (error) {
-        return res.status(500).json({ error: "Error featching orders " });
-    }
+//         const newOrder = await orders.createOrder(userId, items, shippinglocation, phoneNumber, phoneChange, locationChange);
+//         res.status(201).json(newOrder);
+//     } catch (error) {
+//         next(error);
+//     }
+// });
 
 
-})
+// router.get("/me", async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const userId = req.user;
+
+//         if (!userId) {
+//             return res.status(401).json({ error: "Unauthorized" });
+//         }
+
+//         const order = await orders.getOrdersByUserId(userId);
+//         res.status(200).json(order);
+
+//     } catch (error) {
+//         return res.status(500).json({ error: "Error featching orders " });
+//     }
+
+
+// })
 
 router.get("/average", orderMiddleware, async (req: Request, res: Response) => {
 
-    try {
+  try {
 
-        const order = req.order;
+    const order = req.order;
 
-        if (!order) {
-            return res.status(400).json({ error: "Order not found" });
-        }
-
-
-        await orders.cancelOrder(order.id);
-
-        return res.status(201).json('Order cancelled successfully');
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Error fetching feedbacks" });
+    if (!order) {
+      return res.status(400).json({ error: "Order not found" });
     }
+
+
+    await orders.cancelOrder(order.id);
+
+    return res.status(201).json('Order cancelled successfully');
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error fetching feedbacks" });
+  }
 }
 )
 
@@ -104,9 +104,9 @@ router.get(
 
       // Fetch orders (all or filtered by status)
       const ordersList = await orders.getOrdersWithTracking(statusEnum);
-    //   res.status(200).json(ordersList);
+      //   res.status(200).json(ordersList);
 
-       return res.status(200).json({
+      return res.status(200).json({
         status: "success",
         message: "get all orders",
         data: ordersList,
@@ -148,7 +148,7 @@ router.get(
 
       const ordersList = await orders.getordersdetail(order.id);
 
-            return res.status(200).json({
+      return res.status(200).json({
         status: "success",
         message: "get all orders",
         data: ordersList,
@@ -163,39 +163,46 @@ router.get(
 
 
 router.post(
-    "/multi-create",
-    validate(createMultiorderSchema),
-    async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const userId = req.user;
-            if (!userId) {
-                return res.status(401).json({ error: "Unauthorized" });
-            }
+  "/multi-create",
+  locationMiddleware,
+  validate(createMultiorderSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-            const {
-                products,
-                shippinglocation,
-                phoneNumber,
-          
-            } = req.body;
+      const location = req.location;
 
-            // Basic validation
-            if (!Array.isArray(products) || products.length === 0) {
-                return res.status(400).json({ error: "Products array is required" });
-            }
+      const {
+        products,
+        phoneNumber,
+        orderRecived,
+        paymentMethod,
+      } = req.body;
 
-            const newOrder = await orders.createMultiOrder(
-                userId,
-                products,
-                shippinglocation,
-                phoneNumber,
-            );
+      // Basic validation
+      if (!Array.isArray(products) || products.length === 0) {
+        return res.status(400).json({ error: "Products array is required" });
+      }
 
-            res.status(201).json(newOrder);
-        } catch (error) {
-            next(error);
-        }
+      const newOrder = await orders.createMultiOrder(userId, products, location.id, phoneNumber, orderRecived, paymentMethod);
+
+      /*    createMultiOrder(
+             userId,
+             products,
+             location.id,
+             phoneNumber,
+             orderRecived,
+             paymentMethod
+         ); */
+
+      res.status(201).json(newOrder);
+    } catch (error) {
+      next(error);
     }
+  }
 );
 
 
