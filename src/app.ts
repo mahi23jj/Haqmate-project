@@ -4,16 +4,17 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { UserRouter} from './router/user_router.js';
+import { UserRouter } from './router/user_router.js';
 import { config } from './config.js';
 import { productRouter } from './router/productrouter.js';
 import { cartRouter } from './router/cartrouter.js';
-import { OrderRouter} from './router/orderroute.js';
+import { OrderRouter } from './router/orderroute.js';
 import { FeedbackRouter } from './router/feedbackroute.js';
-import { ChapaRouter} from './router/chapa_paymentrouter.js';
+import { ChapaRouter } from './router/chapa_paymentrouter.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
-import * as telebirr from './router/paymentroute.js';
+import * as telebirr from './router/telebirr_paymentroute.js';
 import { DeliveryRouter } from './router/deliveryrouter.js';
+import { PaymentRouter } from './router/paymentroute.js';
 
 export const app = express();
 
@@ -53,10 +54,11 @@ app.use(globalErrorHandler);
 app.use('/api', UserRouter);
 app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
-app.use('/api/order',OrderRouter);
+app.use('/api/order', OrderRouter);
 app.use('/api/feedback', FeedbackRouter);
 app.use('/api/payment', ChapaRouter);
 app.use('/api/delivery', DeliveryRouter);
+app.use('/api/pay', PaymentRouter);
 
 app.post("/apply/h5token", function (req, res) {
   telebirr.authToken(req, res);

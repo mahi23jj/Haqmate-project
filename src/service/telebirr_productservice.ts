@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
 import type { promises } from 'dns';
 import type { CreateProductInput } from '../validation/productvalidation.js'
-import { FeedbackServiceImpl } from '../service/feedbackservice.js';
+import { FeedbackServiceImpl } from './feedbackservice.js';
 
 
 const prisma = new PrismaClient();

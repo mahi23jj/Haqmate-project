@@ -2,7 +2,6 @@
   "name": "ts_practice_node",
   "version": "1.0.0",
   "scripts": {
-  
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate": "ts-node db/mitigation.ts",
     "build": "tsc",

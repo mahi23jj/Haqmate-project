@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../utils/apperror.js';
-import type { Product } from './productservice.js';
+import type { Product } from './telebirr_productservice.js';
 const prisma = new PrismaClient();
 
 
