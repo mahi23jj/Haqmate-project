@@ -507,14 +507,9 @@ export class OrderServiceImpl {
         });
 
         // Add tracking
-        await prisma.orderTracking.create({
-            data: {
-                orderId,
-                type: TrackingType.CANCELLED,
-                message: 'user requested to cancel order',
-                title: 'Order Cancelled',
-                timestamp: new Date()
-            }
+        await prisma.orderTracking.update({
+            where: { orderId },
+            data: { type: TrackingType.CANCELLED, title: 'Order Cancelled' }
         });
     }
 
