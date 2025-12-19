@@ -46,6 +46,7 @@ export interface paymentService {
         phoneNumber,
         orderReceived,
         paymentMethod,
+        idempotencyKey,
         extraDistance
     }: {
         userId: string;
@@ -54,6 +55,7 @@ export interface paymentService {
         phoneNumber: string;
         orderReceived: string;
         paymentMethod: string;
+        idempotencyKey: string;
         extraDistance?: ExtraDistanceLevel;
     }): Promise<any>;
 }
@@ -67,7 +69,8 @@ export class paymentServiceImpl implements paymentService {
         phoneNumber,
         orderReceived,
         paymentMethod,
-        extraDistance
+        idempotencyKey,
+        extraDistance,
     }: {
         userId: string;
         products: OrderItemInput[];
@@ -75,6 +78,7 @@ export class paymentServiceImpl implements paymentService {
         phoneNumber: string;
         orderReceived: string;
         paymentMethod: string;
+        idempotencyKey: string;
         extraDistance?: ExtraDistanceLevel;
 
     }) {
@@ -85,28 +89,43 @@ export class paymentServiceImpl implements paymentService {
 
         const mannualpayment = new mannualpaymentServiceImpl();
 
+          const order = await value.createMultiOrder(
+                userId,
+                products,
+                locationId,
+                phoneNumber,
+                orderReceived,
+                paymentMethod,
+                idempotencyKey,
+                extraDistance,
+                // tx  // pass the transaction client if your function supports it
+            );
+
+
+        // have transaction 
+
+       /*  const order = await prisma.$transaction(async (tx) => {
+            // 1. Create the order
+          
+
+            // 2. Create tracking steps
+            await tx.orderTracking.createMany({
+                data: ORDER_TRACKING_STEPS.map(step => ({
+                    orderId: order.id,
+                    type: step.status,
+                    title: step.title,
+                    timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null,
+                }))
+            });
+
+            return order;
+        }); */
+
+
+
 
 
         // 1. Create order
-        const order = await value.createMultiOrder(
-            userId,
-            products,
-            locationId,
-            phoneNumber,
-            orderReceived,
-            paymentMethod,
-            extraDistance
-        );
-
-        await prisma.orderTracking.createMany({
-            data: ORDER_TRACKING_STEPS.map(step => ({
-                orderId: order.id,
-                type: step.status,
-                title: step.title,
-                timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null,
-            }
-            ))
-        });
 
         // 2. If payment is CHAPA → create payment intent
         if (paymentMethod === "Chapa") {
@@ -122,16 +141,13 @@ export class paymentServiceImpl implements paymentService {
             });
 
             return paymentIntent;
-        } 
+        }
 
         // 3. If COD or other
-        return {
-            order,
-            paymentIntent: null,
-        };
+        return order;
 
     }
 
 
-    
+
 }

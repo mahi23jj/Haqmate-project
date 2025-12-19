@@ -73,7 +73,7 @@
 //     // order.paymentStatus = PaymentStatus.SCREENSHOT_SENT;
 
 
-    
+
 
 //     await prisma.order.update({
 //       where: { id: orderId },
@@ -159,29 +159,16 @@ export class mannualpaymentServiceImpl {
       .from('payment-screenshots')
       .getPublicUrl(fileName);
 
-    // Update order + tracking
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          paymentProofUrl: data.publicUrl,
-          paymentStatus: PaymentStatus.SCREENSHOT_SENT,
-        }
-      });
 
-      await tx.orderTracking.create({
-        data: {
-          orderId,
-          type: TrackingType.PAYMENT_SUBMITTED,
-          title: 'Payment Screenshot Submitted',
-          timestamp: new Date()
-        }
-      });
-
-      return updated;
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentProofUrl: data.publicUrl,
+        paymentStatus: PaymentStatus.SCREENSHOT_SENT,
+      }
     });
 
-    return updatedOrder;
+    return updated;
   }
 
   // --------------------------------

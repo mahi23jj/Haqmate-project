@@ -13,7 +13,7 @@ router.use();
 // Submit payment screenshot
 // -----------------------------
 router.post(
-  '/:orderId/payment/screenshot',
+  '/:orderId',
   upload.single('screenshot'),
   async (req: Request, res: Response) => {
     try {
@@ -40,4 +40,4 @@ router.post(
   }
 );
 
-export default router;
+export { router as ScreenshotRouter };

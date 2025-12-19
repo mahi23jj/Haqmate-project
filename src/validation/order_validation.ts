@@ -8,6 +8,7 @@ export const createMultiorderSchema = z.object({
     phoneNumber: z.string().min(7, {message: "Phone number is too short"}).max(15, {message: "Phone number is too long"}),
     paymentMethod: z.enum(["Chapa", "Telebirr", "Send Screenshot"], {message: "Invalid payment method"}),
     orderRecived:  z.enum(["Delivery", "Pickup"], {message: "Invalid payment method"}),
+    idempotencyKey: z.string().min(1),
 })
 
 

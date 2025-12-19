@@ -163,6 +163,7 @@ enum DeliveryStatus {
 model Order {
   id                 String          @id @default(uuid())
   merchOrderId       String          @unique
+  idempotencyKey     String          @unique 
 
   userId             String
   user               User            @relation(fields: [userId], references: [id])
@@ -230,14 +231,15 @@ model OrderTracking {
   orderId   String
   order     Order        @relation(fields: [orderId], references: [id])
 
-  type      TrackingType
+  type      TrackingType  
   title     String       // "Payment Confirmed"
   message   String?      // optional admin note
   timestamp DateTime?    // set when event occurs
 
   createdAt DateTime     @default(now())
 
-  @@unique([orderId])
+  // @@unique([orderId])
+   @@index([orderId , type ])   // keep index for queries
 }
 
 
@@ -378,7 +380,7 @@ model Cart {
 
 model PaymentIntent {
   id             String   @id @default(uuid())
-  orderId        String
+  orderId        String    @unique
   userId         String
   amount         Float
   currency       String   @default("ETB")
@@ -404,7 +406,7 @@ model PaymentIntent {
 // -------------------- Payment Transactions --------------------
 model PaymentTransaction {
   id              String   @id @default(uuid())
-  orderId         String
+  orderId         String   @unique
   paymentIntentId String?
   provider        String
   providerRef     String?

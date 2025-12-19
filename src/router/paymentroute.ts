@@ -8,6 +8,7 @@ import { validate } from "../middleware/validate.js";
 import { paymentServiceImpl } from "../service/payment_service.js";
 
 import { PaymentStatus, PrismaClient } from '@prisma/client';
+import { uuidv4 } from "zod";
 
 
 const prisma = new PrismaClient();
@@ -29,15 +30,22 @@ router.post(
             const userId = req.user;
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
+
+
             }
 
             const location = req.location;
+
+
+            // cast to string
+
 
             const {
                 products,
                 phoneNumber,
                 orderRecived,
                 paymentMethod,
+                idempotencyKey
             } = req.body;
 
             // Basic validation
@@ -52,7 +60,8 @@ router.post(
                     locationId: location.id,
                     phoneNumber,
                     orderReceived: orderRecived,
-                    paymentMethod
+                    paymentMethod,
+                    idempotencyKey: idempotencyKey,
                 });
 
             return res.status(200).json({

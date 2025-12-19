@@ -347,11 +347,9 @@ export class ChapaIntegration implements PaymentProvider {
         data: { status: OrderStatus.TO_BE_DELIVERED, deliveryStatus: DeliveryStatus.NOT_SCHEDULED, paymentStatus: PaymentStatus.CONFIRMED, updatedAt: new Date() },
       });
 
-      await prisma.orderTracking.update({
-        where: { orderId: paymentIntent.orderId },
-        data: { type: TrackingType.PAYMENT_CONFIRMED, title: "Payment Confirmed", createdAt: new Date() },
+      const value = new OrderServiceImpl();
 
-      })
+      await value.updateTrackingStep(paymentIntent.orderId, TrackingType.PAYMENT_CONFIRMED, "Payment confirmed via Chapa");
 
     } else if (newStatus === "failed") {
       await prisma.order.update({

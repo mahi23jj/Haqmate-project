@@ -15,6 +15,7 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 import * as telebirr from './router/telebirr_paymentroute.js';
 import { DeliveryRouter } from './router/deliveryrouter.js';
 import { PaymentRouter } from './router/paymentroute.js';
+import { ScreenshotRouter } from './router/screenshot_payment_route.js';
 
 export const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/feedback', FeedbackRouter);
 app.use('/api/payment', ChapaRouter);
 app.use('/api/delivery', DeliveryRouter);
 app.use('/api/pay', PaymentRouter);
+app.use('/api/manualpayment', ScreenshotRouter);
 
 app.post("/apply/h5token", function (req, res) {
   telebirr.authToken(req, res);

@@ -93,7 +93,8 @@ router.post(
         phoneNumber,
         orderReceived,
         paymentMethod,
-        extraDistance
+        extraDistance,
+        idempotencyKey
       } = req.body;
 
       if (!Array.isArray(products) || products.length === 0) {
@@ -107,7 +108,8 @@ router.post(
         phoneNumber,
         orderReceived,
         paymentMethod,
-        extraDistance
+        extraDistance,
+        idempotencyKey
       );
 
       return res.status(201).json({

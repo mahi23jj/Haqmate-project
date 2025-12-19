@@ -358,9 +358,18 @@ export interface OrderItemInput {
 export interface OrderResponse {
     id: string;
     userId: string;
+    merchOrderId: string;
     phoneNumber: string;
     location: string;
     totalAmount: number;
+    idempotencyKey: string;
+    orderrecived: string;
+    paymentMethod: string;
+    paymentProofUrl?: string;
+    hasRefundRequest: boolean;
+    cancelReason?: string;
+    deliverystatus: DeliveryStatus;
+    paymentstatus: PaymentStatus;
     status: OrderStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -382,6 +391,13 @@ export interface OrderResponse {
     }[];
 }
 
+export const ORDER_TRACKING_STEPS = [
+    { status: TrackingType.PAYMENT_SUBMITTED, title: 'Order Placed' },
+    { status: TrackingType.PAYMENT_CONFIRMED, title: 'Payment Confirmed' },
+    { status: TrackingType.DELIVERY_SCHEDULED, title: 'Scheduled for Delivery' },
+    { status: TrackingType.CONFIRMED, title: 'Completed' },
+    { status: TrackingType.CANCELLED, title: 'Cancelled' }
+] as const;
 
 
 export class OrderServiceImpl {
@@ -413,6 +429,13 @@ export class OrderServiceImpl {
             id: o.id,
             userId: o.userId,
             phoneNumber: o.phoneNumber,
+            deliverystatus: o.deliveryStatus,
+            idempotencyKey: o.idempotencyKey,
+            paymentstatus: o.paymentStatus,
+            hasRefundRequest: o.hasRefundRequest,
+            merchOrderId: o.merchOrderId,
+            orderrecived: o.orderrecived,
+            paymentMethod: o.paymentMethod,
             location: o.area?.name ?? '',
             totalAmount: o.totalAmount,
             status: o.status,
@@ -438,6 +461,18 @@ export class OrderServiceImpl {
             }))
         }));
     }
+
+
+    async updateTrackingStep(orderId: string, type: TrackingType, message?: string) {
+        await prisma.orderTracking.updateMany({
+            where: { orderId, type },
+            data: {
+                timestamp: new Date(),
+                message: message ?? '',
+            }
+        });
+    }
+
 
     // ---------------------------
     // 2. Get Order Detail
@@ -469,6 +504,15 @@ export class OrderServiceImpl {
             phoneNumber: order.phoneNumber,
             location: order.area?.name ?? '',
             totalAmount: order.totalAmount,
+            deliverystatus: order.deliveryStatus,
+            idempotencyKey: order.idempotencyKey,
+            paymentstatus: order.paymentStatus,
+            hasRefundRequest: order.hasRefundRequest,
+            merchOrderId: order.merchOrderId,
+            orderrecived: order.orderrecived,
+            paymentMethod: order.paymentMethod,
+            cancelReason: order.cancelReason ?? '',
+            paymentProofUrl: order.paymentProofUrl ?? '',
             status: order.status,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
@@ -507,10 +551,7 @@ export class OrderServiceImpl {
         });
 
         // Add tracking
-        await prisma.orderTracking.update({
-            where: { orderId },
-            data: { type: TrackingType.CANCELLED, title: 'Order Cancelled' }
-        });
+        await this.updateTrackingStep(order.id, TrackingType.CANCELLED, "User requested cancellation");
     }
 
     // ---------------------------
@@ -519,18 +560,33 @@ export class OrderServiceImpl {
     async createMultiOrder(
         userId: string,
         products: OrderItemInput[],
-        locationId: string, // areaId
+        locationId: string,
         phoneNumber: string,
         orderReceived: string,
         paymentMethod: string,
-        extraDistance?: ExtraDistanceLevel
-    ): Promise<any> {
+        idempotencyKey: string,
+        extraDistance?: ExtraDistanceLevel,
+    ): Promise<{ id: any; totalAmount: number }> {
 
+        if (!idempotencyKey) {
+            throw new Error("idempotencyKey is required");
+        }
+
+
+        const existingOrder = await prisma.order.findUnique({
+            where: { idempotencyKey: idempotencyKey }
+        });
+
+        if (existingOrder) {
+            return existingOrder; // 🔁 user clicked twice
+        }
+
+        // 1. Calculate delivery fee outside transaction
         const deliveryService = new DeliveryServiceImpl();
         const deliveryInfo = await deliveryService.deliverycharge(locationId);
         const deliveryFee = deliveryInfo.totalFee;
 
-        // Fetch all products in one query
+        // 2. Fetch product prices outside transaction
         const productIds = products.map(p => p.productId);
         const dbProducts = await prisma.teffProduct.findMany({
             where: { id: { in: productIds } },
@@ -538,9 +594,7 @@ export class OrderServiceImpl {
         });
 
         let total = deliveryFee;
-        const orderItemsData = [];
-
-        for (const item of products) {
+        const orderItemsData = products.map(item => {
             const prod = dbProducts.find(p => p.id === item.productId);
             if (!prod) throw new Error('Invalid product');
 
@@ -548,64 +602,54 @@ export class OrderServiceImpl {
             const price = prod.pricePerKg * qty * item.packagingsize;
             total += price;
 
-            orderItemsData.push({
+            return {
                 productId: prod.id,
                 quantity: qty,
                 packaging: item.packagingsize,
                 price
-            });
-        }
-
-        // Create order
-        const order = await prisma.order.create({
-            data: {
-                userId,
-                phoneNumber,
-                areaId: locationId,
-                orderrecived: orderReceived,
-                paymentMethod,
-                totalDeliveryFee: deliveryFee,
-                extraDistanceLevel: extraDistance ?? null,
-                totalAmount: total,
-                merchOrderId: 'MORD' + Date.now(),
-                status: OrderStatus.PENDING_PAYMENT,
-                deliveryStatus: DeliveryStatus.NOT_SCHEDULED,
-                paymentStatus: PaymentStatus.PENDING,
-                items: { create: orderItemsData }
-            },
-            include: {
-                items: {
-                    include: {
-                        product: { select: { id: true, name: true, images: { take: 1, select: { url: true } } } }
-                    }
-                }
-            }
+            };
         });
 
-        // Create initial tracking steps
-      
 
-        return {
-            id: order.id,
-            userId: order.userId,
-            phoneNumber: order.phoneNumber,
-            location: '', // can fetch area separately if needed
-            totalAmount: order.totalAmount,
-            status: order.status,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt,
-            items: order.items.map(it => ({
-                id: it.id,
-                quantity: it.quantity,
-                price: it.price,
-                packaging: it.packaging,
-                product: it.product
-            })),
-          /*   tracking: ORDER_TRACKING_STEPS.map(step => ({
-                status: step.status,
-                title: step.title,
-                timestamp: step.status === 'PENDING_PAYMENT' ? new Date() : null
-            })) */
-        };
+
+
+        // 3. Create order + tracking inside transaction
+        const order = await prisma.$transaction(async (tx) => {
+            const createdOrder = await tx.order.create({
+                data: {
+                    userId,
+                    phoneNumber,
+                    areaId: locationId,
+                    orderrecived: orderReceived,
+                    paymentMethod,
+                    totalDeliveryFee: deliveryFee,
+                    extraDistanceLevel: extraDistance ?? null,
+                    totalAmount: total,
+                    merchOrderId: 'MORD' + Date.now(),
+                    status: OrderStatus.PENDING_PAYMENT,
+                    deliveryStatus: DeliveryStatus.NOT_SCHEDULED,
+                    paymentStatus: PaymentStatus.PENDING,
+                    idempotencyKey: idempotencyKey,
+                    items: { create: orderItemsData }
+                },
+                include: { items: true }
+            });
+
+            await tx.orderTracking.createMany({
+                data: ORDER_TRACKING_STEPS.map(step => ({
+                    orderId: createdOrder.id,
+                    type: step.status,
+                    title: step.title,
+                    timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null
+                }))
+            });
+
+            return createdOrder;
+        });
+
+        return { id: order.id, totalAmount: total };
     }
+
+
+
 }
