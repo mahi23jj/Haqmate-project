@@ -38,7 +38,7 @@ model User {
   accounts         Account[]
   cart             Cart[]
   order            Order[]
-  feedback_request feedback_request[]
+  // feedback_request feedback_request[]
   feedback         feedback[]
   paymentIntents   PaymentIntent[]
 
@@ -135,55 +135,105 @@ model TeffProduct {
   updatedAt   DateTime     @updatedAt
 }
 
-// enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
-enum Status {
-  pending
-  failed
-  paid
-  delivered
-  completed
-  cancelled
-  refunded
+enum OrderStatus {
+  PENDING_PAYMENT
+  TO_BE_DELIVERED       // Order is ongoing (payment or delivery)
+  COMPLETED    // Delivered & confirmed
+  CANCELLED    // Cancelled or declined
 }
 
-model Order {
-  id                 String              @id @default(uuid())
-  merchOrderId       String              @unique
-  userId             String
-  status             Status              @default(pending)
-  totalAmount        Float
+enum PaymentStatus {
+  PENDING           // No payment yet
+  SCREENSHOT_SENT   // Screenshot uploaded, waiting admin
+  FAILED            // Online payment failed
+  CONFIRMED         // Admin or webhook confirmed payment
+  DECLINED          // Screenshot rejected
+  REFUNDED          // Money refunded
+}
 
-  areaId             String
-  area               area                @relation(fields: [areaId], references: [id])
+enum DeliveryStatus {
+  NOT_SCHEDULED
+  SCHEDULED
+  DELIVERED
+}
+
+
+model Order {
+  id                 String          @id @default(uuid())
+  merchOrderId       String          @unique
+
+  userId             String
+  user               User            @relation(fields: [userId], references: [id])
+
+  status             OrderStatus     @default(PENDING_PAYMENT)
+  paymentStatus      PaymentStatus   @default(PENDING)
+  deliveryStatus     DeliveryStatus  @default(NOT_SCHEDULED)
+
+  totalAmount        Float
   phoneNumber        String
 
-  // Delivery details
-  orderrecived       String
-  paymentMethod      String
+  orderrecived       String       // delivery | pickup
+  paymentMethod      String          // chapa | telebirr | screenshot
+  paymentProofUrl    String?         // screenshot image
+  paymentDeclineReason String?
+
+  areaId             String
+  area               area            @relation(fields: [areaId], references: [id])
+
   totalDeliveryFee   Int
-  extraDeliveryFee   Int                 @default(0)
+  extraDeliveryFee   Int             @default(0)
   extraDistanceLevel ExtraDistanceLevel?
 
   deliveryDate       DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
 
-  // Relations
-  user               User                @relation(fields: [userId], references: [id])
+  cancelReason       String?
+  refundAmount       Float?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
   items              OrderItem[]
-  feedback_request   feedback_request[]
   paymentIntents     PaymentIntent[]
   paymentTransactions PaymentTransaction[]
   orderTrackings     OrderTracking[]
 
-  @@index([deliveryDate])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([deliveryStatus])
 }
+
+
+
 
 enum ExtraDistanceLevel {
   near
   medium
   far
+}
+
+enum TrackingType {
+  PAYMENT_SUBMITTED
+  PAYMENT_CONFIRMED
+  DELIVERY_SCHEDULED
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+
+model OrderTracking {
+  id        String       @id @default(uuid())
+  orderId   String
+  order     Order        @relation(fields: [orderId], references: [id])
+
+  type      TrackingType
+  title     String       // "Payment Confirmed"
+  message   String?      // optional admin note
+  timestamp DateTime?    // set when event occurs
+
+  createdAt DateTime     @default(now())
+
+  @@unique([orderId])
 }
 
 
@@ -208,23 +258,23 @@ enum feedback_status {
   cancelled
 }
 
-model feedback_request {
-  id                 String          @id @default(uuid())
-  orderId            String          @unique
-  userId             String
-  status             feedback_status @default(pending)
-  feedback_submitted Boolean         @default(false)
-  skip_count         Int             @default(0)
-  price              Float
-  notifiedAt         DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+// model feedback_request {
+//   id                 String          @id @default(uuid())
+//   orderId            String          @unique
+//   userId             String
+//   status             feedback_status @default(pending)
+//   feedback_submitted Boolean         @default(false)
+//   skip_count         Int             @default(0)
+//   price              Float
+//   notifiedAt         DateTime?
+//   createdAt          DateTime        @default(now())
+//   updatedAt          DateTime        @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+//   order Order @relation(fields: [orderId], references: [id])
+//   user  User  @relation(fields: [userId], references: [id])
 
-  @@index([status, createdAt])
-}
+//   @@index([status, createdAt])
+// }
 
 model feedback {
   id          String    @id @default(uuid())
@@ -291,15 +341,8 @@ model Cart {
 //   FAILED
 
 // }
-model OrderTracking {
-  id        String    @id @default(uuid())
-  orderId   String
-  order     Order     @relation(fields: [orderId], references: [id])
-  status    Status    @default(pending) // "placed", "confirmed", "packing", "out_for_delivery", "delivered"
-  title     String // Ex: "Order Placed"
-  timestamp DateTime? // initially null, updated when status is reached
-  createdAt DateTime  @default(now())
-}
+
+
 
 model PaymentIntent {
   id             String   @id @default(uuid())
@@ -395,3 +438,47 @@ model IdempotencyKey {
  * updatedAt     DateTime  @updatedAt
  * }
  */
+
+// enum status - status: 'pending_payment'| 'paied' | 'delivered' | 'completed' | 'cancelled' | 'refunded';
+// enum Status {
+//   pending
+//   failed
+//   paid
+//   delivered
+//   completed
+//   cancelled
+//   refunded
+// }
+
+// model Order {
+//   id                 String              @id @default(uuid())
+//   merchOrderId       String              @unique
+//   userId             String
+//   status             Status              @default(pending)
+//   totalAmount        Float
+
+//   areaId             String
+//   area               area                @relation(fields: [areaId], references: [id])
+//   phoneNumber        String
+
+//   // Delivery details
+
+//   totalDeliveryFee   Int
+//   extraDeliveryFee   Int                 @default(0)
+//   extraDistanceLevel ExtraDistanceLevel?
+
+//   deliveryDate       DateTime?
+//   createdAt          DateTime            @default(now())
+//   updatedAt          DateTime            @updatedAt
+
+//   // Relations
+//   user               User                @relation(fields: [userId], references: [id])
+//   items              OrderItem[]
+//   feedback_request   feedback_request[]
+//   paymentIntents     PaymentIntent[]
+//   paymentTransactions PaymentTransaction[]
+//   orderTrackings     OrderTracking[]
+
+//   @@index([deliveryDate])
+//   @@index([status])
+// }

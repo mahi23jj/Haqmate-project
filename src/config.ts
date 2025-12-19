@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -17,6 +18,13 @@ export const config = {
   GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
   
 };
+
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // IMPORTANT: service role key
+);
+
 
 if (!config.databaseUrl) {
   // eslint-disable-next-line no-console

@@ -205,6 +205,21 @@ router.post(
   }
 );
 
+// import { Router } from 'express';
+// import { uploadPaymentScreenshot } from '../middlewares/upload';
+// import { submitPaymentScreenshot } from '../controllers/order.controller';
+
+// const router = Router();
+
+// router.post(
+//   '/orders/:orderId/payment-screenshot',
+//   uploadPaymentScreenshot.single('screenshot'),
+//   submitPaymentScreenshot
+// );
+
+// export default router;
+
+
 
 
 export { router as OrderRouter };
