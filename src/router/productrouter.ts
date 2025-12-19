@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { ProductServiceImpl } from "../service/telebirr_productservice.js";
+import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
 import { createProductSchema } from '../validation/productvalidation.js'
 

@@ -2,11 +2,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 import axios from "axios";
 import https from "https";
-import { applyFabricToken, verifyWebhookSignature } from "../service/paymentservice.js";
+import { applyFabricToken, verifyWebhookSignature } from "../service/telebirr_paymentservice.js";
 import { config } from "../config.js";
 import * as tools from "../utils/tools.js";
 import { type Request, type Response, type NextFunction, Router } from "express";
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient , OrderStatus, PaymentStatus } from '@prisma/client';
 
 
 const prisma = new PrismaClient();
@@ -50,23 +50,23 @@ YOUR_PUBLIC_KEY_HERE
     if (payload.trade_status === "SUCCESS") {
       await prisma.order.update({
         where: { id:merchOrderId },
-        data: { status: "paid" }
+        data: { paymentStatus : PaymentStatus.CONFIRMED , status : OrderStatus.TO_BE_DELIVERED }
       });
 
-      await prisma.orderTracking.create({
-        data: {
-          orderId: order.id,
-          title: "Paid",
-          status: "paid",
-          timestamp: new Date()
-        }
-      });
+      // await prisma.orderTracking.update({
+      //   data: {
+      //     orderId: order.id,
+      //     title: "Paid",
+          
+      //     timestamp: new Date()
+      //   }
+      // });
     }
 
     if (payload.trade_status === "FAILED") {
       await prisma.order.update({
         where: { id:merchOrderId },
-        data: { status: "failed" }
+        data: { paymentStatus : PaymentStatus.FAILED }
       });
     }
 
@@ -175,7 +175,7 @@ export const createOrder = async (req: Request, res: Response) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
     if (order.userId !== userId)
       return res.status(403).json({ error: "Order does not belong to this buyer" });
-    if (order.status !== "pending")
+    if (order.status !== OrderStatus.PENDING_PAYMENT)
       return res.status(400).json({ error: `Order not eligible for payment. Status: ${order.status}` });
 
     const amount = order.totalAmount.toString();

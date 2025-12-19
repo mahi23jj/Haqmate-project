@@ -382,13 +382,7 @@ export interface OrderResponse {
     }[];
 }
 
-// export const ORDER_TRACKING_STEPS = [
-//     { status: 'PENDING_PAYMENT', title: 'Order Placed' },
-//     { status: 'TO_BE_DELIVERED', title: 'Payment Confirmed' },
-//     { status: 'TO_BE_DELIVERED', title: 'Scheduled for Delivery' },
-//     { status: 'COMPLETED', title: 'Delivered' },
-//     { status: 'COMPLETED', title: 'Completed' }
-// ] as const;
+
 
 export class OrderServiceImpl {
 
@@ -594,15 +588,7 @@ export class OrderServiceImpl {
         });
 
         // Create initial tracking steps
-        // await prisma.orderTracking.createMany({
-        //     data: ORDER_TRACKING_STEPS.map(step => ({
-        //         orderId: order.id,
-        //         status: step.status,
-        //         title: step.title,
-        //         timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null,
-
-        //     }))
-        // });
+      
 
         return {
             id: order.id,
