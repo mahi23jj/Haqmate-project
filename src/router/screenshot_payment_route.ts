@@ -7,7 +7,7 @@ const router = Router();
 const upload = multer(); // memory storage
 const orders = new mannualpaymentServiceImpl();
 
-router.use();
+//router.use();
 
 // -----------------------------
 // Submit payment screenshot
