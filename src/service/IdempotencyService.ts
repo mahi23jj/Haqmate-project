@@ -1,7 +1,7 @@
 // import { sql } from "../db/client";
 import { nanoid } from "nanoid";
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 
 export interface IdempotencyRecord {

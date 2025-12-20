@@ -9,7 +9,7 @@ import { type Request, type Response, type NextFunction, Router } from "express"
 import { PrismaClient , OrderStatus, PaymentStatus } from '@prisma/client';
 
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 const router = Router();
 
 

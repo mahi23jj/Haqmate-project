@@ -8,7 +8,7 @@
 // import { NotFoundError } from '../utils/apperror.js';
 // import { DeliveryServiceImpl } from './delivery.js';
 
-// const prisma = new PrismaClient();
+// import { prisma } from '../prisma.js';
 
 // export const submitPaymentScreenshot = async (
 //   req: Request,
@@ -103,7 +103,7 @@ import { PrismaClient, OrderStatus, PaymentStatus, TrackingType } from '@prisma/
 import { NotFoundError } from '../utils/apperror.js';
 import { supabase } from '../config.js';
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 export class mannualpaymentServiceImpl {
 

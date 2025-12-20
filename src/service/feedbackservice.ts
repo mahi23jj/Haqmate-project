@@ -1,7 +1,7 @@
 
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 export interface Feedback {
   productId: string;
@@ -158,7 +158,7 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
 // import { PrismaClient } from '@prisma/client';
 // import { NotFoundError } from '../utils/apperror.js';
 // import type { Product } from './productservice.js';
-// const prisma = new PrismaClient();
+// import { prisma } from '../prisma.js';
 
 
 // export interface Feedback {

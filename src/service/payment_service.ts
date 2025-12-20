@@ -10,7 +10,7 @@ import { mannualpaymentServiceImpl } from './screanshoot_payment.js';
 
 
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 export interface OrderItemInput {
     productId: string;

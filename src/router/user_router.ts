@@ -6,7 +6,7 @@ import { validate } from "../middleware/validate.js";
 import { loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 const usersRouter = Router();
 

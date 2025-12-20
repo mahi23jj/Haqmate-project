@@ -11,7 +11,7 @@ import { PaymentStatus, PrismaClient } from '@prisma/client';
 import { uuidv4 } from "zod";
 
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 const router = Router();
 router.use(authMiddleware);

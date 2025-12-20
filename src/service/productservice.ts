@@ -5,7 +5,7 @@ import type { CreateProductInput } from '../validation/productvalidation.js'
 import { FeedbackServiceImpl } from './feedbackservice.js';
 
 
-const prisma = new PrismaClient();
+import { prisma } from '../prisma.js';
 
 export interface ProductService {
 
