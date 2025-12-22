@@ -43,6 +43,32 @@ router.get("/products/:id", async (req, res, next) => {
 });
 
 
+router.get('/', async (req, res, next) => {
+  try {
+    const statusParam = req.query.status as string;
+
+
+    /*    if (statusParam) {
+         if (!(statusParam.toUpperCase() in OrderStatus)) {
+           return res.status(400).json({ error: 'Invalid order status' });
+         }
+   
+         statusEnum =
+           OrderStatus[statusParam.toUpperCase() as keyof typeof OrderStatus];
+       } */
+
+    const ordersList = await products.searchProduct(statusParam)
+
+    return res.status(200).json({
+      success: true,
+      message: 'Product fetched successfully',
+      data: ordersList
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put("/stockupdate/:id", async (req, res, next) => {
   try {
     const productId = req.params.id;
@@ -51,12 +77,12 @@ router.put("/stockupdate/:id", async (req, res, next) => {
     if (isstock) {
       return res.status(200).json(
         {
-        status: "success",
-        message: "Retrieve a product by ID",
-        data: isstock,
-      }
-    
-    );
+          status: "success",
+          message: "Retrieve a product by ID",
+          data: isstock,
+        }
+
+      );
     }
   } catch (error) {
     next(error);
@@ -71,7 +97,7 @@ router.post(
   async (req, res, next) => {
     try {
       // req.body is now validated and typed
-      const { name, description, price, teffType, images, quality , instock } = req.body;
+      const { name, description, price, teffType, images, quality, instock } = req.body;
 
       const newProduct = await products.createProduct({
         name,
