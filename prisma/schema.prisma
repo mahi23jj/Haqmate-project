@@ -189,7 +189,7 @@ model Order {
 
   deliveryDate       DateTime?
 
-   hasRefundRequest Boolean         @default(false)
+  Refundstatus       RefundStatus       @default(Not_Started)
   cancelReason       String?
   refundAmount       Float?
 
@@ -266,6 +266,7 @@ enum feedback_status {
 
 
 enum RefundStatus {
+  Not_Started
   PENDING    // User requested refund
   APPROVED   // Admin approved refund
   REJECTED   // Admin rejected refund
@@ -284,7 +285,7 @@ model RefundRequest {
   phoneNumber   String?
   reason       String?
 
-  status       RefundStatus @default(PENDING)
+  status       RefundStatus @default(Not_Started)
   adminNote    String?       // Optional note if rejected/approved
 
   createdAt    DateTime      @default(now())
