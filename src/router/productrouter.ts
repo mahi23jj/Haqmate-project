@@ -24,6 +24,23 @@ router.get("/products", async (req, res, next) => {
   }
 });
 
+
+router.get('/products/search', async (req, res, next) => {
+  try {
+    const search = req.query.search as string;
+
+    const productsList = await products.searchProduct(search);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Products fetched successfully',
+      data: productsList,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /products/:id - Retrieve a product by ID
 router.get("/products/:id", async (req, res, next) => {
   try {
@@ -43,31 +60,7 @@ router.get("/products/:id", async (req, res, next) => {
 });
 
 
-router.get('/', async (req, res, next) => {
-  try {
-    const statusParam = req.query.status as string;
 
-
-    /*    if (statusParam) {
-         if (!(statusParam.toUpperCase() in OrderStatus)) {
-           return res.status(400).json({ error: 'Invalid order status' });
-         }
-   
-         statusEnum =
-           OrderStatus[statusParam.toUpperCase() as keyof typeof OrderStatus];
-       } */
-
-    const ordersList = await products.searchProduct(statusParam)
-
-    return res.status(200).json({
-      success: true,
-      message: 'Product fetched successfully',
-      data: ordersList
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 
 router.put("/stockupdate/:id", async (req, res, next) => {
   try {

@@ -58,7 +58,7 @@ router.get("/:productId",
             return res.status(404).json({ error: "Product not found" });
         }
 
-        const Product = await Feedbacks.getFeedbackByProduct(productId);
+        const Product = await Feedbacks.gettopfeedbacks(productId);
         return res.status(200).json(
             {
                 status: "success",

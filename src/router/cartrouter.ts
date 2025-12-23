@@ -11,7 +11,7 @@ const Carts = new CartServiceImpl();
 
 
 // POST /cart/add - Add or update an item in the cart
-router.post("/add_update",
+router.post("/add",
   productMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -27,7 +27,7 @@ router.post("/add_update",
       }
       const { quantity = 1, packagingsize } = req.body;
 
-      await Carts.addOrUpdateCart(userId, {
+      await Carts.addToCart(userId, {
         productId,
         quantity,
         packagingsize: packagingsize,

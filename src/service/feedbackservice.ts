@@ -2,6 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
+import { redisClient } from '../redis_test.js';
 
 export interface Feedback {
   productId: string;
@@ -57,6 +58,9 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
       },
     });
 
+   
+     await redisClient.del(`product:${feedback.productId}`);
+    
     return newFeedback;
 
   } catch (error) {

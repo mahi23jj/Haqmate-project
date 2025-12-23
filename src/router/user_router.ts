@@ -7,6 +7,8 @@ import { loginSchema, registerSchema, updatestatus } from "../validation/auth_va
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
 import { prisma } from '../prisma.js';
+import { CartServiceImpl } from "../service/cartservice.js";
+
 
 const usersRouter = Router();
 
@@ -38,6 +40,12 @@ usersRouter.post("/login",
         body: { email: email, password: password, rememberMe: rememberMe },
       });
 
+
+      const value = new CartServiceImpl();
+
+      await value.preloadCartOnLogin(session.user.id);
+
+
       res.status(200).json(session);
 
     } catch (error: any) {
@@ -66,7 +74,7 @@ usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
   async (req, res) => {
-    const { username, email, password,phoneNumber } = req.body;
+    const { username, email, password, phoneNumber } = req.body;
 
     const locationdate = req.location;
 
@@ -86,7 +94,7 @@ usersRouter.post("/signup",
       const userId = session?.user?.id;
 
 
-      
+
 
 
 
@@ -95,7 +103,7 @@ usersRouter.post("/signup",
         await prisma.user.update({
           where: { id: userId },
           data: {
-            areaId:locationdate.id,
+            areaId: locationdate.id,
             phoneNumber,
           },
         });
@@ -119,54 +127,54 @@ usersRouter.post("/signup",
 
 
 
-// forget password
-usersRouter.post("/forget-password", async (req, res) => {
-  const { email } = req.body;
-})
+    // forget password
+    usersRouter.post("/forget-password", async (req, res) => {
+      const { email } = req.body;
+    })
   });
 
 
 
 // update location and phone number 
-usersRouter.put("/user/update-status", 
+usersRouter.put("/user/update-status",
   validate(updatestatus),
   locationMiddleware,
   authMiddleware,
   async (req, res) => {
-  try {
-    const userId = req.user; // from auth middleware
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const location = req.location;
-
-    const { phoneNumber } = req.body;
-
-    // Update user
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        areaId: location.id,
-        phoneNumber,
-      },
-      include: {
-        area: true, // include updated location info if needed
+    try {
+      const userId = req.user; // from auth middleware
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
-    });
 
-    return res.status(200).json({
-      status: "success",
-      message: "User status updated successfully",
-    });
+      const location = req.location;
 
-  } catch (error: any) {
-    return res.status(500).json({
-      status: "error",
-      error: error.message || "Something went wrong",
-    });
-  }
-});
+      const { phoneNumber } = req.body;
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          areaId: location.id,
+          phoneNumber,
+        },
+        include: {
+          area: true, // include updated location info if needed
+        }
+      });
+
+      return res.status(200).json({
+        status: "success",
+        message: "User status updated successfully",
+      });
+
+    } catch (error: any) {
+      return res.status(500).json({
+        status: "error",
+        error: error.message || "Something went wrong",
+      });
+    }
+  });
 
 
 
