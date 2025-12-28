@@ -2,6 +2,7 @@
   Warnings:
 
   - You are about to drop the column `hasRefundRequest` on the `Order` table. All the data in the column will be lost.
+  - You are about to drop the column `status` on the `RefundRequest` table. All the data in the column will be lost.
 
 */
 -- AlterEnum
@@ -11,11 +12,10 @@ ALTER TYPE "RefundStatus" ADD VALUE 'Not_Started';
 DROP INDEX "Order_status_idx";
 
 -- AlterTable
-ALTER TABLE "Order" DROP COLUMN "hasRefundRequest",
-ADD COLUMN     "Refundstatus" "RefundStatus" NOT NULL DEFAULT 'Not_Started';
+ALTER TABLE "Order" DROP COLUMN "hasRefundRequest";
 
 -- AlterTable
-ALTER TABLE "RefundRequest" ALTER COLUMN "status" SET DEFAULT 'Not_Started';
+ALTER TABLE "RefundRequest" DROP COLUMN "status";
 
 -- CreateIndex
 CREATE INDEX "Order_status_createdAt_idx" ON "Order"("status", "createdAt");

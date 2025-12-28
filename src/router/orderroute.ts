@@ -78,7 +78,7 @@ router.get(
 router.post(
   '/multi-create',
   locationMiddleware,
-  validate(createMultiorderSchema),
+  // validate(createMultiorderSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user;
@@ -97,19 +97,30 @@ router.post(
         idempotencyKey
       } = req.body;
 
+     
+
+      console.log('products', req.body);
+
       if (!Array.isArray(products) || products.length === 0) {
         return res.status(400).json({ error: 'Products array is required' });
       }
 
-      const newOrder = await orders.createMultiOrder(
+      console.log('elements of orderrecived $ $', orderReceived);
+        
+
+      const newOrder = await orders.createMultiOrder( {
         userId,
+        locationId:location.id,
         products,
-        location.id,
         phoneNumber,
-        orderReceived,
+        orderReceived:orderReceived,
         paymentMethod,
         extraDistance,
         idempotencyKey
+      }
+       
+
+      
       );
 
       return res.status(201).json({

@@ -7,7 +7,7 @@ import { createMultiorderSchema } from "../validation/order_validation.js";
 import { validate } from "../middleware/validate.js";
 import { paymentServiceImpl } from "../service/payment_service.js";
 
-import { PaymentStatus, PrismaClient } from '@prisma/client';
+import { PaymentStatus, PrismaClient, RefundStatus } from '@prisma/client';
 import { uuidv4 } from "zod";
 
 
@@ -97,13 +97,14 @@ router.post("/orders/:orderId/refund", async (req, res) => {
 
     }
 
-
+    
     const refund = await prisma.refundRequest.create({
         data: {
             orderId,
             userId,
             accountName,
             accountNumber,
+            status: RefundStatus.PENDING,
             phoneNumber: user.phoneNumber,
             reason,
         }
@@ -111,8 +112,10 @@ router.post("/orders/:orderId/refund", async (req, res) => {
 
     await prisma.order.update({
         where: { id: orderId },
-        data: { hasRefundRequest: true , paymentStatus: PaymentStatus.REFUNDED},
+        data: { Refundstatus: RefundStatus.PENDING, paymentStatus: PaymentStatus.REFUNDED},
     });
+
+
 
     res.json({ message: "Refund request submitted", refund });
 });

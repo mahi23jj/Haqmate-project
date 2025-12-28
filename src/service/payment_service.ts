@@ -62,26 +62,28 @@ export interface paymentService {
 
 
 export class paymentServiceImpl implements paymentService {
-    async placeorderandpay({
-        userId,
-        products,
-        locationId,
-        phoneNumber,
-        orderReceived,
-        paymentMethod,
-        idempotencyKey,
-        extraDistance,
-    }: {
-        userId: string;
-        products: OrderItemInput[];
-        locationId: string;  // IMPORTANT: this is areaId
-        phoneNumber: string;
-        orderReceived: string;
-        paymentMethod: string;
-        idempotencyKey: string;
-        extraDistance?: ExtraDistanceLevel;
+    async placeorderandpay(
 
-    }) {
+        {
+            userId,
+            products,
+            locationId,
+            phoneNumber,
+            orderReceived,
+            paymentMethod,
+            idempotencyKey,
+            extraDistance,
+        }: {
+            userId: string;
+            products: OrderItemInput[];
+            locationId: string;  // IMPORTANT: this is areaId
+            phoneNumber: string;
+            orderReceived: string;
+            paymentMethod: string;
+            idempotencyKey: string;
+            extraDistance?: ExtraDistanceLevel;
+
+        }) {
 
         const value = new OrderServiceImpl();
 
@@ -89,7 +91,8 @@ export class paymentServiceImpl implements paymentService {
 
         const mannualpayment = new mannualpaymentServiceImpl();
 
-          const order = await value.createMultiOrder(
+        const order = await value.createMultiOrder(
+            {
                 userId,
                 products,
                 locationId,
@@ -97,29 +100,29 @@ export class paymentServiceImpl implements paymentService {
                 orderReceived,
                 paymentMethod,
                 idempotencyKey,
-                extraDistance,
-                // tx  // pass the transaction client if your function supports it
-            );
+            }
+        );
+
 
 
         // have transaction 
 
-       /*  const order = await prisma.$transaction(async (tx) => {
-            // 1. Create the order
-          
-
-            // 2. Create tracking steps
-            await tx.orderTracking.createMany({
-                data: ORDER_TRACKING_STEPS.map(step => ({
-                    orderId: order.id,
-                    type: step.status,
-                    title: step.title,
-                    timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null,
-                }))
-            });
-
-            return order;
-        }); */
+        /*  const order = await prisma.$transaction(async (tx) => {
+             // 1. Create the order
+           
+ 
+             // 2. Create tracking steps
+             await tx.orderTracking.createMany({
+                 data: ORDER_TRACKING_STEPS.map(step => ({
+                     orderId: order.id,
+                     type: step.status,
+                     title: step.title,
+                     timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null,
+                 }))
+             });
+ 
+             return order;
+         }); */
 
 
 

@@ -369,7 +369,7 @@ export interface OrderResponse {
     orderrecived: string;
     paymentMethod: string;
     paymentProofUrl?: string;
-    hasRefundRequest: boolean;
+    refundstatus: string;
     cancelReason?: string;
     deliverystatus: DeliveryStatus;
     paymentstatus: PaymentStatus;
@@ -426,13 +426,14 @@ export class OrderServiceImpl {
                 deliveryStatus: true,
                 idempotencyKey: true,
                 paymentStatus: true,
-                hasRefundRequest: true,
+                Refundstatus: true,
                 merchOrderId: true,
                 orderrecived: true,
                 paymentMethod: true,
                 totalAmount: true,
                 createdAt: true,
                 updatedAt: true,
+                deliveryDate: true,
                 items: {
                     include: {
                         product: {
@@ -453,11 +454,12 @@ export class OrderServiceImpl {
             deliverystatus: o.deliveryStatus,
             idempotencyKey: o.idempotencyKey,
             paymentstatus: o.paymentStatus,
-            hasRefundRequest: o.hasRefundRequest,
+            refundstatus: o.Refundstatus,
             merchOrderId: o.merchOrderId,
             orderrecived: o.orderrecived,
             paymentMethod: o.paymentMethod,
             totalAmount: o.totalAmount,
+            deliverydate: o.deliveryDate,
             status: o.status,
             createdAt: o.createdAt,
             updatedAt: o.updatedAt,
@@ -483,8 +485,6 @@ export class OrderServiceImpl {
     // ---------------------------
     // 1. Get Orders with Tracking
     // ---------------------------
-
-
     async updateTrackingStep(orderId: string, type: TrackingType, message?: string) {
         await prisma.orderTracking.updateMany({
             where: { orderId, type },
@@ -529,7 +529,7 @@ export class OrderServiceImpl {
             deliverystatus: order.deliveryStatus,
             idempotencyKey: order.idempotencyKey,
             paymentstatus: order.paymentStatus,
-            hasRefundRequest: order.hasRefundRequest,
+            refundstatus: order.Refundstatus,
             merchOrderId: order.merchOrderId,
             orderrecived: order.orderrecived,
             paymentMethod: order.paymentMethod,
@@ -580,55 +580,82 @@ export class OrderServiceImpl {
     // 4. Create Multi Order
     // ---------------------------
 
-    async createMultiOrder(
-        userId: string,
-        products: OrderItemInput[],
-        locationId: string,
-        phoneNumber: string,
-        orderReceived: string,
-        paymentMethod: string,
-        idempotencyKey: string,
-        extraDistance?: ExtraDistanceLevel
-    ): Promise<{ id: string; totalAmount: number }> {
+    async createMultiOrder({
+        userId,
+        products,
+        locationId,      // maps to areaId
+        phoneNumber,
+        orderReceived,   // from request, string 'Delivery' | 'Pickup'
+        paymentMethod,
+        idempotencyKey,
+        extraDistance,
+    }: {
+        userId: string;
+        products: OrderItemInput[];
+        locationId: string;
+        phoneNumber: string;
+        orderReceived: string;
+        paymentMethod: string;
+        idempotencyKey: string;
+        extraDistance?: ExtraDistanceLevel;
+    }): Promise<{ id: string; totalAmount: number }> {
+
         if (!idempotencyKey) throw new Error("idempotencyKey is required");
 
+        console.log("Creating multi order for userId:", userId);
+
+        // Check for duplicate
         const existingOrder = await prisma.order.findUnique({ where: { idempotencyKey } });
         if (existingOrder) return { id: existingOrder.id, totalAmount: existingOrder.totalAmount };
 
         const deliveryService = new DeliveryServiceImpl();
         const productIds = products.map(p => p.productId);
 
-        /** ✅ Fetch product prices from Redis or DB */
-        async function getProductPrices(productIds: string[]) {
+        console.log("Fetching prices for products:", products);
+
+        // Fetch prices
+        async function getProductPrices(ids: string[]) {
             const products: { id: string; pricePerKg: number }[] = [];
-            const redisResults = await Promise.all(
-                productIds.map(id => redisClient.hGet('products', id))
-            );
+            const redisResults = await Promise.all(ids.map(id => redisClient.hGet('products', id)));
 
             const missingIds: string[] = [];
+
             redisResults.forEach((res, i) => {
-                if (res) products.push({ id: productIds[i]!, pricePerKg: Number(res) });
-                else missingIds.push(productIds[i]!);
+                if (res) {
+                    try {
+                        const parsed = JSON.parse(res); // <-- parse JSON
+                        products.push({ id: parsed.id, pricePerKg: Number(parsed.pricePerKg) });
+                    } catch (err) {
+                        console.error('Error parsing Redis data', err);
+                        missingIds.push(ids[i]!);
+                    }
+                } else {
+                    missingIds.push(ids[i]!);
+                }
             });
 
-            if (missingIds.length > 0) {
+            if (missingIds.length) {
                 const dbProducts = await prisma.teffProduct.findMany({
                     where: { id: { in: missingIds } },
                     select: { id: true, pricePerKg: true }
                 });
 
                 for (const p of dbProducts) {
-                    await redisClient.hSet('products', p.id, p.pricePerKg.toString());
-                    products.push(p);
+                    await redisClient.hSet('products', p.id, JSON.stringify(p)); // save as JSON
+                    products.push({ id: p.id, pricePerKg: Number(p.pricePerKg) });
                 }
             }
+
             return products;
         }
+
 
         const [deliveryInfo, dbProducts] = await Promise.all([
             deliveryService.deliverycharge(locationId),
             getProductPrices(productIds)
         ]);
+
+        console.log('products', dbProducts);
 
         const productMap = new Map(dbProducts.map(p => [p.id, p]));
         let total = deliveryInfo.totalFee;
@@ -648,13 +675,15 @@ export class OrderServiceImpl {
             timestamp: step.status === TrackingType.PAYMENT_SUBMITTED ? new Date() : null
         }));
 
+        // Create order transaction
         const order = await prisma.$transaction(async tx => {
             const createdOrder = await tx.order.create({
                 data: {
-                    userId,
+                    user: { connect: { id: userId } },
+                    area: { connect: { id: locationId } },
                     phoneNumber,
-                    areaId: locationId,
-                    orderrecived: orderReceived,
+                    // areaId: locationId,
+                    orderrecived: orderReceived,      // must match schema field name
                     paymentMethod,
                     totalDeliveryFee: deliveryInfo.totalFee,
                     extraDistanceLevel: extraDistance ?? null,
@@ -664,7 +693,7 @@ export class OrderServiceImpl {
                     deliveryStatus: DeliveryStatus.NOT_SCHEDULED,
                     paymentStatus: PaymentStatus.PENDING,
                     idempotencyKey,
-                    items: { createMany: { data: orderItemsData } }
+                    items: { createMany: { data: orderItemsData } },
                 }
             });
 
@@ -677,6 +706,7 @@ export class OrderServiceImpl {
 
         return { id: order.id, totalAmount: total };
     }
+
     //     async createMultiOrder(
     //         userId: string,
     //         products: OrderItemInput[],
