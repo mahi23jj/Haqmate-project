@@ -14,7 +14,7 @@ export interface ProductService {
 
 
   getAllProducts(): Promise<Product[]>;
-  getProductById(id: string): Promise<Product | null>;
+  getProductById(id: string , userId: string): Promise<Product | null>;
   createProduct(data: CreateProductInput): any;
   updatestock(id: string): any;
   searchProduct(query: string): Promise<Product[]>;
@@ -89,7 +89,7 @@ export class ProductServiceImpl implements ProductService {
 
 
 
-  async getProductById(id: string): Promise<Product> {
+  async getProductById(id: string , userid: string): Promise<Product> {
 
       const cacheKey = `product:${id}`;
         const cached = await redisClient.get(cacheKey);
@@ -113,7 +113,7 @@ export class ProductServiceImpl implements ProductService {
 
       // Instantiate feedback service
 
-      const feedbackData = await this.feedbackService.gettopfeedbacks(id);
+      const feedbackData = await this.feedbackService.gettopfeedbacks(id , userid);
 
 
       

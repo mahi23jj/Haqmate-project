@@ -53,12 +53,13 @@ router.get("/:productId",
     try {
 
         const { productId } = req.params;
+        const userId = req.user;
 
         if (!productId) {
             return res.status(404).json({ error: "Product not found" });
         }
 
-        const Product = await Feedbacks.gettopfeedbacks(productId);
+        const Product = await Feedbacks.gettopfeedbacks(productId, userId);
         return res.status(200).json(
             {
                 status: "success",

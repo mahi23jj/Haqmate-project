@@ -25,7 +25,7 @@ export interface FeedbackResponse {
 export interface FeedbackService {
   createFeedback(feedback: Feedback): Promise<FeedbackResponse>;
   getFeedbackByProduct(productId: string): Promise<any>;
-  gettopfeedbacks(productId: string): Promise<any>;
+  gettopfeedbacks(productId: string, userId?: string): Promise<any>;
 }
 
 export class FeedbackServiceImpl implements FeedbackService {
@@ -113,7 +113,7 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
     }
 
 
-  async gettopfeedbacks(Productid : string): Promise<any> {
+  async gettopfeedbacks(Productid : string, userId?: string): Promise<any> {
     try {
       // Fetch top 2 feedbacks with highest ratings
       const topFeedbacks = await prisma.feedback.findMany({
@@ -135,14 +135,39 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
        
       });
 
+      // Fetch requesting user's feedback (if exists) so it can be appended as a 3rd item
+      let userFeedback = null;
+      if (userId) {
+        userFeedback = await prisma.feedback.findFirst({
+          where: { productid: Productid, userId },
+          select: {
+            id: true,
+            user: {
+              select: { id: true, name: true }
+            },
+            rating: true,
+            message: true,
+            submittedAt: true,
+          },
+        });
+      }
+
             const stats = await prisma.feedback.aggregate({
         where: { productid: Productid },
         _avg: { rating: true },
         _count: { rating: true },
       });
 
+      const combinedFeedbacks = [...topFeedbacks];
+      if (userFeedback) {
+        const alreadyIncluded = combinedFeedbacks.some((fb) => fb.user.id === userFeedback?.user.id);
+        if (!alreadyIncluded) {
+          combinedFeedbacks.push(userFeedback);
+        }
+      }
+
       return {
-        feedback : topFeedbacks,
+        feedback : combinedFeedbacks,
         averageRating: stats._avg.rating ?? 0,
         totalRatings: stats._count.rating ?? 0,
       };

@@ -47,7 +47,7 @@ app.use(express.json());
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 
-app.use(globalErrorHandler);
+// Register error handler after routes for proper propagation
 
 
 // Auth routes with better-auth
@@ -93,11 +93,20 @@ app.use(
   ) => {
     // eslint-disable-next-line no-console
     console.error(err);
+    const statusCode = typeof (err as any).status === 'number'
+      ? (err as any).status
+      : typeof (err as any).statusCode === 'number'
+        ? (err as any).statusCode
+        : 500;
+
     res
-      .status(err.status || 500)
+      .status(statusCode)
       .json({ error: err.message || "Internal Server Error" });
   }
 );
+
+// Global error handler (AppError-aware)
+app.use(globalErrorHandler);
 
 
 

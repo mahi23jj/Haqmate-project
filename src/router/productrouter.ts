@@ -3,6 +3,7 @@ import { Router } from "express";
 import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
 import { createProductSchema } from '../validation/productvalidation.js'
+import { authMiddleware } from "../middleware/authmiddleware.js";
 
 const router = Router();
 
@@ -42,11 +43,25 @@ router.get('/products/search', async (req, res, next) => {
 });
 
 // GET /products/:id - Retrieve a product by ID
-router.get("/products/:id", async (req, res, next) => {
+router.get("/products/:id",
+  authMiddleware,
+   async (req, res, next) => {
   try {
     const productId = req.params.id;
-    const product = await products.getProductById(productId);
 
+     const userId = req.user;
+
+     if (!userId ) {
+       return res.status(401).json({ error: "Unauthorized" });
+     }
+
+     if (!productId) {
+       return res.status(404).json({ error: "Product not found" });
+     }
+
+
+
+    const product = await products.getProductById(productId, userId);
     if (product) {
       return res.status(201).json({
         status: "success",
