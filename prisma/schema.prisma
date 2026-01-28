@@ -20,29 +20,29 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  name             String
-  email            String    @unique
-  emailVerified    Boolean   @default(false)
-  image            String?
+  id            String  @id @default(uuid())
+  name          String
+  email         String  @unique
+  emailVerified Boolean @default(false)
+  image         String?
 
-  areaId           String?
-  phoneNumber      String?
+  areaId      String?
+  phoneNumber String?
 
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  area             area?      @relation(fields: [areaId], references: [id])
+  area area? @relation(fields: [areaId], references: [id])
 
-  sessions         Session[]
-  accounts         Account[]
-  cart             Cart[]
-  order            Order[]
-  RefundRequest    RefundRequest[]
-  
+  sessions      Session[]
+  accounts      Account[]
+  cart          Cart[]
+  order         Order[]
+  RefundRequest RefundRequest[]
+
   // feedback_request feedback_request[]
-  feedback         feedback[]
-  paymentIntents   PaymentIntent[]
+  feedback       feedback[]
+  paymentIntents PaymentIntent[]
 
   @@map("user")
 }
@@ -83,7 +83,7 @@ model Account {
 
 model Verification {
   id         String   @id @default(uuid())
-  identifier String
+  identifier String   @unique
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
@@ -139,18 +139,18 @@ model TeffProduct {
 
 enum OrderStatus {
   PENDING_PAYMENT
-  TO_BE_DELIVERED       // Order is ongoing (payment or delivery)
-  COMPLETED    // Delivered & confirmed
-  CANCELLED    // Cancelled or declined
+  TO_BE_DELIVERED // Order is ongoing (payment or delivery)
+  COMPLETED // Delivered & confirmed
+  CANCELLED // Cancelled or declined
 }
 
 enum PaymentStatus {
-  PENDING           // No payment yet
-  SCREENSHOT_SENT   // Screenshot uploaded, waiting admin
-  FAILED            // Online payment failed
-  CONFIRMED         // Admin or webhook confirmed payment
-  DECLINED          // Screenshot rejected
-  REFUNDED          // Money refunded
+  PENDING // No payment yet
+  SCREENSHOT_SENT // Screenshot uploaded, waiting admin
+  FAILED // Online payment failed
+  CONFIRMED // Admin or webhook confirmed payment
+  DECLINED // Screenshot rejected
+  REFUNDED // Money refunded
 }
 
 enum DeliveryStatus {
@@ -159,56 +159,52 @@ enum DeliveryStatus {
   DELIVERED
 }
 
-
 model Order {
-  id                 String          @id @default(uuid())
-  merchOrderId       String          @unique
-  idempotencyKey     String          @unique 
+  id             String @id @default(uuid())
+  merchOrderId   String @unique
+  idempotencyKey String @unique
 
-  userId             String
-  user               User            @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  status             OrderStatus     @default(PENDING_PAYMENT)
-  paymentStatus      PaymentStatus   @default(PENDING)
-  deliveryStatus     DeliveryStatus  @default(NOT_SCHEDULED)
+  status         OrderStatus    @default(PENDING_PAYMENT)
+  paymentStatus  PaymentStatus  @default(PENDING)
+  deliveryStatus DeliveryStatus @default(NOT_SCHEDULED)
 
-  totalAmount        Float
-  phoneNumber        String
+  totalAmount Float
+  phoneNumber String
 
-  orderrecived       String       // delivery | pickup
-  paymentMethod      String          // chapa | telebirr | screenshot
-  paymentProofUrl    String?         // screenshot image
+  orderrecived         String // delivery | pickup
+  paymentMethod        String // chapa | telebirr | screenshot
+  paymentProofUrl      String? // screenshot image
   paymentDeclineReason String?
 
-  areaId             String
-  area               area            @relation(fields: [areaId], references: [id])
+  areaId String
+  area   area   @relation(fields: [areaId], references: [id])
 
   totalDeliveryFee   Int
-  extraDeliveryFee   Int             @default(0)
+  extraDeliveryFee   Int                 @default(0)
   extraDistanceLevel ExtraDistanceLevel?
 
-  deliveryDate       DateTime?
+  deliveryDate DateTime?
 
-  Refundstatus       RefundStatus       @default(Not_Started)
-  cancelReason       String?
-  refundAmount       Float?
+  Refundstatus RefundStatus @default(Not_Started)
+  cancelReason String?
+  refundAmount Float?
 
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  refundRequests    RefundRequest[]
-  items              OrderItem[]
-  paymentIntents     PaymentIntent[]
+  refundRequests      RefundRequest[]
+  items               OrderItem[]
+  paymentIntents      PaymentIntent[]
   paymentTransactions PaymentTransaction[]
-  orderTrackings     OrderTracking[]
+  orderTrackings      OrderTracking[]
 
-  @@index([status , createdAt])
+  @@index([status, createdAt])
   @@index([paymentStatus])
   @@index([deliveryStatus])
 }
-
-
-
 
 enum ExtraDistanceLevel {
   near
@@ -225,23 +221,21 @@ enum TrackingType {
   REFUNDED
 }
 
-
 model OrderTracking {
-  id        String       @id @default(uuid())
-  orderId   String
-  order     Order        @relation(fields: [orderId], references: [id])
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
 
-  type      TrackingType  
-  title     String       // "Payment Confirmed"
-  message   String?      // optional admin note
-  timestamp DateTime?    // set when event occurs
+  type      TrackingType
+  title     String // "Payment Confirmed"
+  message   String? // optional admin note
+  timestamp DateTime? // set when event occurs
 
-  createdAt DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   // @@unique([orderId])
-   @@index([orderId , type ])   // keep index for queries
+  @@index([orderId, type]) // keep index for queries
 }
-
 
 model OrderItem {
   id        String      @id @default(uuid())
@@ -264,34 +258,32 @@ enum feedback_status {
   cancelled
 }
 
-
 enum RefundStatus {
   Not_Started
-  PENDING    // User requested refund
-  APPROVED   // Admin approved refund
-  REJECTED   // Admin rejected refund
+  PENDING // User requested refund
+  APPROVED // Admin approved refund
+  REJECTED // Admin rejected refund
 }
 
 model RefundRequest {
-  id           String   @id @default(uuid())
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id])
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
 
-  userId       String
-  user               User            @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  accountName  String
+  accountName   String
   accountNumber String?
   phoneNumber   String?
-  reason       String?
+  reason        String?
 
-  status       RefundStatus @default(Not_Started)
-  adminNote    String?       // Optional note if rejected/approved
+  status    RefundStatus @default(Not_Started)
+  adminNote String? // Optional note if rejected/approved
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
 
 // model feedback_request {
 //   id                 String          @id @default(uuid())
@@ -325,8 +317,8 @@ model feedback {
   teffproduct       TeffProduct         @relation(fields: [productid], references: [id])
   feedbackanalytics FeedbackAnalytics[]
 
-  @@index([productid])
   @@unique([userId, productid])
+  @@index([productid])
 }
 
 model FeedbackAnalytics {
@@ -343,16 +335,14 @@ model FeedbackAnalytics {
 }
 
 model area {
-  id        String @id @default(uuid())
-  name      String
+  id        String   @id @default(uuid())
+  name      String   
   baseFee   Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
   users     User[]
 }
-
-
 
 model Cart {
   id        String      @id @default(uuid())
@@ -377,11 +367,9 @@ model Cart {
 
 // }
 
-
-
 model PaymentIntent {
   id             String   @id @default(uuid())
-  orderId        String    @unique
+  orderId        String   @unique
   userId         String
   amount         Float
   currency       String   @default("ETB")

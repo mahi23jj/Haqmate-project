@@ -3,7 +3,7 @@ import { Router } from "express";
 import { auth } from "../../lib/auth.js";
 import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
-import { loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
+import { forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
 import { prisma } from '../prisma.js';
@@ -126,11 +126,6 @@ usersRouter.post("/signup",
     }
 
 
-
-    // forget password
-    usersRouter.post("/forget-password", async (req, res) => {
-      const { email } = req.body;
-    })
   });
 
 
@@ -176,6 +171,178 @@ usersRouter.put("/user/update-status",
     }
   });
 
+
+usersRouter.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    // ✅ Delete existing OTPs for this email + flow
+    await prisma.verification.deleteMany({
+      where: {
+        identifier: {
+          startsWith:`forget-password-otp-${email}`,
+
+        },
+      },
+    });
+
+    const response = await auth.api.forgetPasswordEmailOTP({
+      body: { email },
+    });
+
+    console.log("Reset code sent response:", response);
+
+    res.status(200).json({
+      message: "If the email exists, a reset code has been sent.",
+    });
+  } catch (error: any) {
+    console.error("Failed to send reset code:", error);
+    res.status(400).json({
+      message: "Failed to send reset code. Please try again later.",
+    });
+  }
+});
+
+
+usersRouter.post("/forgot-password/verify-otp", async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    await auth.api.checkVerificationOTP({
+      body: {
+        email,
+        otp,
+        type: "forget-password",
+      },
+    });
+
+    res.status(200).json({
+      valid: true,
+      message: "OTP verified. You may now reset your password.",
+    });
+  } catch (err: any) {
+    res.status(400).json({
+      valid: false,
+      error: err.message || "Invalid or expired OTP",
+    });
+  }
+});
+
+usersRouter.post(
+  "/forgot-password/reset",
+  validate(forgetpasswordSchema),
+  async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+
+    try {
+      await auth.api.resetPasswordEmailOTP({
+        body: {
+          email,
+          otp,
+          password: newPassword,
+        },
+      });
+
+      res.status(200).json({
+        message: "Password reset successfully. You can now log in.",
+      });
+    } catch (err: any) {
+      res.status(400).json({
+        error: err.message || "Invalid OTP or expired session",
+      });
+    }
+  });
+
+
+// get user profile
+usersRouter.get("/profile",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const userId = req.user; // from auth middleware
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          area: true, // include location info
+        }
+      });
+
+      return res.status(200).json({
+        status: "success",
+        data: user,
+      });
+
+
+    } catch (error: any) {
+      return res.status(500).json({
+        status: "error",
+        error: error.message || "Something went wrong",
+      });
+    }
+  }
+)
+
+
+// update user profile
+usersRouter.put("/user/update-profile",
+  // validate(updatestatus),
+  locationMiddleware,
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const userId = req.user; // from auth middleware
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const location = req.location;
+
+      const { name, phoneNumber } = req.body;
+
+
+      console.log("Incoming body:", req.body);
+
+
+      await auth.api.updateUser({
+        headers: fromNodeHeaders(req.headers),
+        body: {
+          name: name,
+        },
+      });
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          areaId: location.id,
+          phoneNumber,
+          name,
+        },
+        include: {
+          area: true, // include updated location info if needed
+        }
+      });
+
+      return res.status(200).json({
+        status: "success",
+        message: "User profile updated successfully",
+        data:updatedUser,
+      });
+
+    } catch (error: any) {
+      return res.status(500).json({
+        status: "error",
+        error: error.message || "Something went wrong",
+      });
+    }
+  });
 
 
 

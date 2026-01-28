@@ -4,11 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 dotenv.config();
 
 export const config = {
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM: process.env.RESEND_FROM,
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3000),
   databaseUrl: process.env.DATABASE_URL ?? '',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
-  isdev : process.env.NODE_ENV !== 'production',
+  isdev: process.env.NODE_ENV !== 'production',
   baseUrl: process.env.baseurl, // exampleoce
   fabricAppId: process.env.fabricAppID,
   merchantAppId: process.env.merchantAppId,
@@ -16,7 +18,7 @@ export const config = {
   appSecret: process.env.appSecret,
   PrivateKey: process.env.PrivateKey || '',
   GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
-  
+
 };
 
 

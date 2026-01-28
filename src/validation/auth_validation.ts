@@ -11,6 +11,16 @@ export const loginSchema = z.object({
     rememberMe: z.boolean().optional()
 })
 
+export const forgetpasswordSchema = z.object({
+    email: z.email({
+        message: "Invalid email"
+    }),
+    // make password to have 1 number , 1 small later , 1 capital letter , 1 specila character at least and 8 characters
+    newPassword: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/,
+        { message: "Password must contain at least 1 number , 1 small later , 1 capital letter , 1 specila character at least and 8 characters" }
+    ),
+    otp: z.string().regex(/^\d{6}$/, { message: "OTP must be 6 digits" }),
+})
 
 
 export const registerSchema = z.object({
