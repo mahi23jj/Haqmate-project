@@ -348,7 +348,6 @@ import { NotFoundError } from '../utils/apperror.js';
 import { DeliveryServiceImpl } from './delivery.js';
 
 import { prisma } from '../prisma.js';
-import { redisClient } from '../redis_test.js';
 
 // const prisma = new PrismaClient();
 
@@ -371,8 +370,10 @@ export interface OrderResponse {
     paymentProofUrl?: string;
     refundstatus: string;
     cancelReason?: string;
+    deliveryFee: number;
     deliverystatus: DeliveryStatus;
     paymentstatus: PaymentStatus;
+    deliveryDate?: Date | null;
     status: OrderStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -406,48 +407,44 @@ export const ORDER_TRACKING_STEPS = [
 export class OrderServiceImpl {
 
 
-    async getOrdersWithTracking(status?: OrderStatus, page = 1, limit = 20): Promise<any[]> {
-        const cacheKey = `orders:${status ?? 'all'}:page:${page}:limit:${limit}`;
 
-        // 1️⃣ Try to fetch from Redis
-        const cachedData = await redisClient.get(cacheKey);
-        if (cachedData) {
-            console.log('Returning orders from cache');
-            return JSON.parse(cachedData);
-        }
-
-        // 2️⃣ Fetch from Prisma if not cached
-        const orders = await prisma.order.findMany({
-            where: status ? { status } : {},
-            select: {
-                id: true,
-                userId: true,
-                status: true,
-                deliveryStatus: true,
-                idempotencyKey: true,
-                paymentStatus: true,
-                Refundstatus: true,
-                merchOrderId: true,
-                orderrecived: true,
-                paymentMethod: true,
-                totalAmount: true,
-                createdAt: true,
-                updatedAt: true,
-                deliveryDate: true,
-                items: {
-                    include: {
-                        product: {
-                            select: { id: true, name: true, images: { take: 1, select: { url: true } } }
+    async getOrdersWithTracking(status?: OrderStatus, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
+        // Fetch directly from Prisma (cache removed)
+        const whereClause = status ? { status } : {};
+        const [orders, total] = await Promise.all([
+            prisma.order.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    userId: true,
+                    status: true,
+                    deliveryStatus: true,
+                    idempotencyKey: true,
+                    paymentStatus: true,
+                    Refundstatus: true,
+                    merchOrderId: true,
+                    orderrecived: true,
+                    paymentMethod: true,
+                    totalAmount: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deliveryDate: true,
+                    items: {
+                        include: {
+                            product: {
+                                select: { id: true, name: true, images: { take: 1, select: { url: true } } }
+                            }
                         }
                     }
-                }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            skip: (page - 1) * limit
-        });
+                },
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip: (page - 1) * limit
+            }),
+            prisma.order.count({ where: whereClause }),
+        ]);
 
-        // 3️⃣ Transform data
+        // Transform data
         const result = orders.map(o => ({
             id: o.id,
             userId: o.userId,
@@ -476,10 +473,7 @@ export class OrderServiceImpl {
             }))
         }));
 
-        // 4️⃣ Save to Redis with TTL (e.g., 60 seconds)
-        await redisClient.setEx(cacheKey, 60 * 60 * 24, JSON.stringify(result));
-
-        return result;
+        return { items: result, total };
     }
 
     // ---------------------------
@@ -518,6 +512,7 @@ export class OrderServiceImpl {
             }
         });
 
+            
         if (!order) throw new NotFoundError('Order not found');
 
         return {
@@ -533,8 +528,10 @@ export class OrderServiceImpl {
             merchOrderId: order.merchOrderId,
             orderrecived: order.orderrecived,
             paymentMethod: order.paymentMethod,
+            deliveryFee: order.totalDeliveryFee,
             cancelReason: order.cancelReason ?? '',
             paymentProofUrl: order.paymentProofUrl ?? '',
+            deliveryDate: order.deliveryDate,
             status: order.status,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
@@ -613,40 +610,13 @@ export class OrderServiceImpl {
 
         console.log("Fetching prices for products:", products);
 
-        // Fetch prices
+        // Fetch prices (directly from DB)
         async function getProductPrices(ids: string[]) {
-            const products: { id: string; pricePerKg: number }[] = [];
-            const redisResults = await Promise.all(ids.map(id => redisClient.hGet('products', id)));
-
-            const missingIds: string[] = [];
-
-            redisResults.forEach((res, i) => {
-                if (res) {
-                    try {
-                        const parsed = JSON.parse(res); // <-- parse JSON
-                        products.push({ id: parsed.id, pricePerKg: Number(parsed.pricePerKg) });
-                    } catch (err) {
-                        console.error('Error parsing Redis data', err);
-                        missingIds.push(ids[i]!);
-                    }
-                } else {
-                    missingIds.push(ids[i]!);
-                }
+            const dbProducts = await prisma.teffProduct.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, pricePerKg: true }
             });
-
-            if (missingIds.length) {
-                const dbProducts = await prisma.teffProduct.findMany({
-                    where: { id: { in: missingIds } },
-                    select: { id: true, pricePerKg: true }
-                });
-
-                for (const p of dbProducts) {
-                    await redisClient.hSet('products', p.id, JSON.stringify(p)); // save as JSON
-                    products.push({ id: p.id, pricePerKg: Number(p.pricePerKg) });
-                }
-            }
-
-            return products;
+            return dbProducts.map(p => ({ id: p.id, pricePerKg: Number(p.pricePerKg) }));
         }
 
 
@@ -694,16 +664,12 @@ export class OrderServiceImpl {
                     paymentStatus: PaymentStatus.PENDING,
                     idempotencyKey,
                     items: { createMany: { data: orderItemsData } },
+                    orderTrackings: { createMany: { data: trackingData } },
                 }
             });
-
-            await tx.orderTracking.createMany({
-                data: trackingData.map(t => ({ ...t, orderId: createdOrder.id }))
-            });
-
+            // Tracking already created via nested createMany
             return createdOrder;
         });
-
         return { id: order.id, totalAmount: total };
     }
 

@@ -40,47 +40,85 @@ usersRouter.post("/login",
         body: { email: email, password: password, rememberMe: rememberMe },
       });
 
-
       const value = new CartServiceImpl();
-
       await value.preloadCartOnLogin(session.user.id);
-
 
       res.status(200).json(session);
 
-    } catch (error: any) {
-      res
-        .status(400)
-        .json({ error: error.message || "Invalid email or password" });
+    } catch (error : any) {
+      console.error("Login error:", error);
+      
+      let statusCode = 400;
+      let errorMessage = "Invalid email or password";
+      
+      // Extract better error message from Better Auth
+      if (error.message) {
+        const message = error.message.toLowerCase();
+        
+        if (message.includes("user not found") || message.includes("invalid email")) {
+          errorMessage = "User not found";
+        } else if (message.includes("invalid password") || message.includes("incorrect password")) {
+          errorMessage = "Incorrect password";
+        } else if (message.includes("email not verified")) {
+          errorMessage = "Email not verified. Please check your inbox.";
+          statusCode = 403;
+        } else if (message.includes("too many requests")) {
+          errorMessage = "Too many attempts. Please try again later.";
+          statusCode = 429;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      res.status(statusCode).json({ 
+        success: false,
+        error: errorMessage 
+      });
     }
-  });
+  }
+);
 
-
-// logout 
-usersRouter.post("/logout",
-  async (req, res) => {
-    try {
-      await auth.api.signOut({
-        headers: fromNodeHeaders(req.headers), // <-- reads Authorization header
-      })
-    } catch (err: any) {
-      console.error("Error fetching session:", err);
-    }
-  })
-
-//abAB12@#"
-// register 
+// Signup route with better error handling
 usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
   async (req, res) => {
     const { username, email, password, phoneNumber } = req.body;
-
     const locationdate = req.location;
 
-
-
     try {
+      // Validate phone number format for Ethiopia
+      if (!phoneNumber.startsWith('+251')) {
+        return res.status(400).json({
+          success: false,
+          error: "Phone number must start with +251"
+        });
+      }
+
+      // Check if email already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: "Email already exists"
+        });
+      }
+
+      // Check if phone number already exists
+      const existingPhone = await prisma.user.findFirst({
+        where: { phoneNumber }
+      });
+
+      if (existingPhone) {
+        return res.status(400).json({
+          success: false,
+          error: "Phone number already exists"
+        });
+      }
+
       // 1️⃣ Sign up with Better Auth
       const session = await auth.api.signUpEmail({
         body: {
@@ -90,13 +128,8 @@ usersRouter.post("/signup",
         },
       });
 
-      // 2️⃣ Get user ID from session (Better Auth returns it)
+      // 2️⃣ Get user ID from session
       const userId = session?.user?.id;
-
-
-
-
-
 
       // 3️⃣ Update your Prisma user record with extra fields
       if (userId) {
@@ -109,8 +142,9 @@ usersRouter.post("/signup",
         });
       }
 
-      // 4️⃣ Return full session (with user info)
-      res.status(200).json({
+      // 4️⃣ Return success response
+      res.status(201).json({
+        success: true,
         message: "Signup successful",
         user: {
           ...session.user,
@@ -120,14 +154,36 @@ usersRouter.post("/signup",
         token: session.token,
       });
 
-    } catch (error: any) {
-      // console.error("Signup error:", error);
-      res.status(400).json({ error: error.message || "Invalid email or password" });
+    } catch (error : any) {
+      console.error("Signup error:", error);
+      
+      let errorMessage = "Signup failed";
+      let statusCode = 400;
+      
+      if (error.message) {
+        const message = error.message.toLowerCase();
+        
+        if (message.includes("email already") || message.includes("duplicate")) {
+          errorMessage = "Email already registered";
+        } else if (message.includes("password") && message.includes("weak")) {
+          errorMessage = "Password is too weak";
+        } else if (message.includes("invalid email")) {
+          errorMessage = "Invalid email format";
+        } else if (message.includes("network") || message.includes("connection")) {
+          errorMessage = "Network error";
+          statusCode = 503;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      res.status(statusCode).json({
+        success: false,
+        error: errorMessage
+      });
     }
-
-
-  });
-
+  }
+);
 
 
 // update location and phone number 

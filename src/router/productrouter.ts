@@ -12,12 +12,21 @@ const products = new ProductServiceImpl();
 // GET /products - Retrieve all products
 router.get("/products", async (req, res, next) => {
   try {
-    const allProducts = await products.getAllProducts();
+    const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
+
+    const result = await products.getAllProducts(page, limit);
 
     return res.status(201).json({
       status: "success",
       message: "Retrieve all products",
-      data: allProducts,
+      data: result.items,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / limit),
+      },
     });
 
   } catch (error) {
@@ -29,13 +38,21 @@ router.get("/products", async (req, res, next) => {
 router.get('/products/search', async (req, res, next) => {
   try {
     const search = req.query.search as string;
+    const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
 
-    const productsList = await products.searchProduct(search);
+    const productsList = await products.searchProduct(search, page, limit);
 
     return res.status(200).json({
       success: true,
       message: 'Products fetched successfully',
-      data: productsList,
+      data: productsList.items,
+      pagination: {
+        page,
+        limit,
+        total: productsList.total,
+        totalPages: Math.ceil(productsList.total / limit),
+      },
     });
   } catch (error) {
     next(error);

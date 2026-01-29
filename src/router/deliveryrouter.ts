@@ -29,13 +29,21 @@ router.post("/location", async (req: Request, res: Response) => {
 router.get("/location", async (req: Request, res: Response) => {
   const query = (req.query.query as string) ?? "";  // safe
   const normalizedQuery = query.toLowerCase();      // safe
+  const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
 
   try {
-    const locations = await Delivery.getLocations(normalizedQuery);
+    const locations = await Delivery.getLocations(normalizedQuery, page, limit);
 
     return res.status(200).json({
       status: "success",
-      data: locations,
+      data: locations.items,
+      pagination: {
+        page,
+        limit,
+        total: locations.total,
+        totalPages: Math.ceil(locations.total / limit),
+      },
     });
   } catch (error: any) {
     return res.status(500).json({

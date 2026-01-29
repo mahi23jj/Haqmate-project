@@ -38,7 +38,7 @@ router.post("/add",
     }
   });
 
-  router.put("/quantity_update",
+router.put("/quantity_update",
   productMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -52,7 +52,7 @@ router.post("/add",
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
       }
-      const { quantity , packagingsize } = req.body;
+      const { quantity, packagingsize } = req.body;
 
       await Carts.updateCartItemQuantity(userId, productId, packagingsize, quantity);
 
@@ -63,15 +63,21 @@ router.post("/add",
     }
   });
 
-    router.put("/update/:id",
+router.put("/update/:id",
+
   async (req: Request, res: Response, next: NextFunction) => {
     try {
 
       const cartid = req.params.id ?? '';
+      const userId = req.user;
 
-      const { updatedproductid , updatedpackagingsize , updatedquantity } = req.body;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-      await Carts.updateCartItem( cartid ,updatedproductid , updatedpackagingsize , updatedquantity);
+      const { updatedproductid, updatedpackagingsize, updatedquantity } = req.body;
+
+      await Carts.updateCartItem(userId, cartid, updatedproductid, updatedpackagingsize, updatedquantity);
 
       res.status(200).json({ message: "Item quantity updated successfully" });
 
@@ -82,16 +88,16 @@ router.post("/add",
 
 
 // Remove an item from the cart
-router.delete("/remove", async (req: Request, res: Response, next: NextFunction) => {
+router.delete("/:cartid/remove", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user;
 
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
+    const cartid = req.params.cartid;
+
+    if (!cartid) {
+      return res.status(400).json({ error: "Cart ID is required" });
     }
-    const { productId, packagingId } = req.body;
 
-    await Carts.removeItemFromCart(userId, productId, packagingId);
+    await Carts.removeItemFromCart(cartid);
     res.status(200).json({ message: "Item removed from cart successfully" });
   }
   catch (error) {

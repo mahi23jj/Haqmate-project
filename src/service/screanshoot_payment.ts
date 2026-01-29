@@ -99,13 +99,16 @@
 // };
 
 
-import { PrismaClient, OrderStatus, PaymentStatus, TrackingType } from '@prisma/client';
-import { NotFoundError } from '../utils/apperror.js';
+import { OrderStatus, PaymentStatus, TrackingType, DeliveryStatus } from '@prisma/client';
+import { NotFoundError, ValidationError } from '../utils/apperror.js';
 import { supabase } from '../config.js';
 
 import { prisma } from '../prisma.js';
+import { OrderServiceImpl } from './orderservice.js';
 
 export class mannualpaymentServiceImpl {
+
+  orderServiceImpl = new OrderServiceImpl();
 
   // --------------------------------
   // Submit payment screenshot
@@ -170,11 +173,81 @@ export class mannualpaymentServiceImpl {
       }
     });
 
+   //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+
     return updated;
   }
 
   // --------------------------------
   // Cancel order (already existing)
   // --------------------------------
+
+  //  approve a screenshot
+  async approvePayment(orderId: string) {
+    if (!orderId) {
+      throw new ValidationError('Order ID is required');
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundError('Order not found');
+
+   //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+
+    return prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: PaymentStatus.CONFIRMED,
+        status: OrderStatus.TO_BE_DELIVERED,
+      }
+    });
+  }
+
+  async rejectPayment(orderId: string) {
+    if (!orderId) {
+      throw new ValidationError('Order ID is required');
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundError('Order not found');
+
+
+    //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+
+
+    return prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: PaymentStatus.DECLINED,
+        status: OrderStatus.CANCELLED,
+      }
+    });
+  }
+
+  async scheduleDelivery(orderId: string, deliveryDate: string | Date) {
+    if (!orderId) {
+      throw new ValidationError('Order ID is required');
+    }
+
+    const parsedDate = new Date(deliveryDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new ValidationError('Valid deliveryDate is required');
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundError('Order not found');
+
+     //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+
+    return prisma.order.update({
+      where: { id: orderId },
+      data: {
+        deliveryDate: parsedDate,
+        paymentStatus: PaymentStatus.CONFIRMED,
+        status: OrderStatus.TO_BE_DELIVERED,
+        deliveryStatus: DeliveryStatus.SCHEDULED,
+      }
+    });
+  }
+  
 }
 

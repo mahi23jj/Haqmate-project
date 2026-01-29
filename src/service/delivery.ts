@@ -12,7 +12,7 @@ export enum ExtraDistanceLevel {
 export interface DeliveryService {
     createlocation(location: string , km: number): Promise<any>;
     // getlocation(): Promise<any>;
-    getLocations(query: string): Promise<any>;
+  getLocations(query: string, page?: number, limit?: number): Promise<{ items: any[]; total: number }>;
     getlocationbyid(id: string): Promise<any>;
     deletelocation(id: string): Promise<any>;
     updatelocation(id: string, location: string, km: number): Promise<any>;
@@ -53,16 +53,26 @@ export class DeliveryServiceImpl implements DeliveryService {
   }
 
   // ✅ Get all locations by quary
-  async getLocations(query: string): Promise<any> {
+  async getLocations(query: string, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
   try {
-    return await prisma.area.findMany({
-      where: {
-        name: {
-          contains: query,
-          mode: "insensitive"   // <-- Case-insensitive filtering
-        }
+    const whereClause = {
+      name: {
+        contains: query,
+        mode: "insensitive" as const   // <-- Case-insensitive filtering
       }
-    });
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.area.findMany({
+        where: whereClause,
+        orderBy: { name: 'asc' },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      prisma.area.count({ where: whereClause }),
+    ]);
+
+    return { items, total };
   } catch (error) {
     console.error("❌ Error fetching locations:", error);
     throw new Error("Error fetching locations");

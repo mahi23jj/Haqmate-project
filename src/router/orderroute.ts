@@ -24,6 +24,8 @@ router.use(authMiddleware);
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const statusParam = req.query.status as string | undefined;
+    const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
     let statusEnum: OrderStatus | undefined;
 
     if (statusParam) {
@@ -35,12 +37,18 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         OrderStatus[statusParam.toUpperCase() as keyof typeof OrderStatus];
     }
 
-    const ordersList = await orders.getOrdersWithTracking(statusEnum);
+    const ordersList = await orders.getOrdersWithTracking(statusEnum, page, limit);
 
     return res.status(200).json({
       success: true,
       message: 'Orders fetched successfully',
-      data: ordersList
+      data: ordersList.items,
+      pagination: {
+        page,
+        limit,
+        total: ordersList.total,
+        totalPages: Math.ceil(ordersList.total / limit),
+      }
     });
   } catch (error) {
     next(error);

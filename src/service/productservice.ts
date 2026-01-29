@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
 import type { promises } from 'dns';
 import type { CreateProductInput } from '../validation/productvalidation.js'
@@ -13,11 +13,11 @@ export interface ProductService {
 
 
 
-  getAllProducts(): Promise<Product[]>;
-  getProductById(id: string , userId: string): Promise<Product | null>;
+  getAllProducts(page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
+  getProductById(id: string, userId: string): Promise<Product | null>;
   createProduct(data: CreateProductInput): any;
   updatestock(id: string): any;
-  searchProduct(query: string): Promise<Product[]>;
+  searchProduct(query: string, page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
   //   deleteProduct(id: number): Promise<boolean>;
 }
@@ -44,24 +44,30 @@ export class ProductServiceImpl implements ProductService {
     private feedbackService: FeedbackServiceImpl = new FeedbackServiceImpl()
   ) { }
 
-  async getAllProducts(): Promise<Product[]> {
+  async getAllProducts(page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
     try {
 
-      const cacheKey = 'all_products';
+      const cacheKey = `all_products:${page}:${limit}`;
 
-        const cached = await redisClient.get(cacheKey);
-        if (cached) return JSON.parse(cached);
+      const cached = await redisClient.get(cacheKey);
+      if (cached) return JSON.parse(cached);
       // Fetch products with relations
-      const products = await prisma.teffProduct.findMany({
-        include: {
-          teffType: true,
-          quality: true,
-          images: true,
-        },
-      });
+      const [products, total] = await Promise.all([
+        prisma.teffProduct.findMany({
+          include: {
+            teffType: true,
+            quality: true,
+            images: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: (page - 1) * limit,
+        }),
+        prisma.teffProduct.count(),
+      ]);
 
       // Map DB data into Product interface
-       const mappedProducts = products.map((prod) => {
+      const mappedProducts = products.map((prod) => {
         const baseProduct = {
           id: prod.id,
           name: prod.name,
@@ -77,8 +83,10 @@ export class ProductServiceImpl implements ProductService {
           : baseProduct;
       });
 
-      await redisClient.set(cacheKey, JSON.stringify(mappedProducts));
-      return mappedProducts;
+      const payload = { items: mappedProducts, total };
+
+      await redisClient.set(cacheKey, JSON.stringify(payload));
+      return payload;
 
 
     } catch (error) {
@@ -89,11 +97,11 @@ export class ProductServiceImpl implements ProductService {
 
 
 
-  async getProductById(id: string , userid: string): Promise<Product> {
+  async getProductById(id: string, userid: string): Promise<Product> {
 
-      const cacheKey = `product:${id}`;
-        const cached = await redisClient.get(cacheKey);
-        if (cached) return JSON.parse(cached);
+    const cacheKey = `product:${id}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
 
 
     try {
@@ -113,11 +121,11 @@ export class ProductServiceImpl implements ProductService {
 
       // Instantiate feedback service
 
-      const feedbackData = await this.feedbackService.gettopfeedbacks(id , userid);
+      const feedbackData = await this.feedbackService.gettopfeedbacks(id, userid);
 
 
-      
-       
+
+
 
 
 
@@ -132,8 +140,8 @@ export class ProductServiceImpl implements ProductService {
         createdAt: prod.createdAt,
         updatedAt: prod.updatedAt,
         isstock: prod.inStock,
-        discount : prod.discount,
-        ... feedbackData,
+        discount: prod.discount,
+        ...feedbackData,
       };
 
       const mapped = prod.quality?.name
@@ -168,100 +176,210 @@ export class ProductServiceImpl implements ProductService {
     });
 
 
-    
 
-    await redisClient.del('all_products');
+
+    const allProductsKeys = await redisClient.keys('all_products:*');
+    if (allProductsKeys.length > 0) {
+      await redisClient.del(allProductsKeys);
+    }
     await redisClient.del(`product:${id}`);
     return { message: "Stock updated" };
   }
 
+  async searchProduct(
+    query: string,
+    page = 1,
+    limit = 20
+  ): Promise<{ items: Product[]; total: number }> {
+    try {
+      const trimmedQuery = (query ?? '').trim().toLowerCase();
+      if (!trimmedQuery) return { items: [], total: 0 };
 
-  async searchProduct(query: string): Promise<Product[]> {
-  try {
-    const trimmedQuery = query.trim().toLowerCase();
-    if (!trimmedQuery) return [];
+      const cacheKey = `search_products:${trimmedQuery}:${page}:${limit}`;
 
-    const cacheKey = `search_products:${trimmedQuery}`;
+      // 1️⃣ Redis cache
+      const cached = await redisClient.get(cacheKey);
+      if (cached) return JSON.parse(cached);
 
-    // 1️⃣ Redis cache check
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
-    // 2️⃣ Prisma search
-    const products = await prisma.teffProduct.findMany({
-      where: {
+      const whereClause: Prisma.TeffProductWhereInput = {
         OR: [
           {
             name: {
               contains: trimmedQuery,
-              mode: 'insensitive',
+              mode: Prisma.QueryMode.insensitive,
             },
           },
           {
             description: {
               contains: trimmedQuery,
-              mode: 'insensitive',
+              mode: Prisma.QueryMode.insensitive,
             },
           },
           {
             teffType: {
-              name: {
-                contains: trimmedQuery,
-                mode: 'insensitive',
+              is: {
+                name: {
+                  contains: trimmedQuery,
+                  mode: Prisma.QueryMode.insensitive,
+                },
               },
             },
           },
           {
             quality: {
-              name: {
-                contains: trimmedQuery,
-                mode: 'insensitive',
+              is: {
+                name: {
+                  contains: trimmedQuery,
+                  mode: Prisma.QueryMode.insensitive,
+                },
               },
             },
           },
         ],
-      },
-      include: {
-        teffType: true,
-        quality: true,
-        images: true,
-      },
-      take: 30, // ✅ limit results for performance
-    });
-
-    // 3️⃣ Map to Product interface
-    const mappedProducts = products.map((prod) => {
-      const baseProduct = {
-        id: prod.id,
-        name: prod.name,
-        images: prod.images.map((img) => img.url),
-        description: prod.description ?? '',
-        price: prod.pricePerKg,
-        teffType: prod.teffType.name,
-        createdAt: prod.createdAt,
-        updatedAt: prod.updatedAt,
       };
 
-      return prod.quality?.name
-        ? { ...baseProduct, quality: prod.quality.name }
-        : baseProduct;
-    });
 
-    // 4️⃣ Cache result (short TTL)
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(mappedProducts),
-      { EX: 60 } // ⏱️ 1 minute cache
-    );
+      const [products, total] = await Promise.all([
+        prisma.teffProduct.findMany({
+          where: whereClause,
+          include: {
+            teffType: true,
+            quality: true,
+            images: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: (page - 1) * limit,
+        }),
+        prisma.teffProduct.count({ where: whereClause }),
+      ]);
 
-    return mappedProducts;
-  } catch (error) {
-    console.error('❌ Error searching products:', error);
-    throw new Error('Failed to search products');
+      const mappedProducts = products.map((prod) => {
+        const baseProduct = {
+          id: prod.id,
+          name: prod.name,
+          images: prod.images.map((img) => img.url),
+          description: prod.description ?? '',
+          price: prod.pricePerKg,
+          teffType: prod.teffType.name,
+          createdAt: prod.createdAt,
+          updatedAt: prod.updatedAt,
+        };
+        return prod.quality?.name
+          ? { ...baseProduct, quality: prod.quality.name }
+          : baseProduct;
+      });
+
+      const payload = { items: mappedProducts, total };
+
+      // 3️⃣ Cache (1 min)
+      await redisClient.set(cacheKey, JSON.stringify(payload), { EX: 60 });
+
+      return payload;
+
+    } catch (error) {
+      console.error('❌ Error searching products:', error);
+      throw new Error('Failed to search products');
+    }
   }
-}
+
+
+
+  //   async searchProduct(query: string, page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
+  //   try {
+  //     const trimmedQuery = (query ?? '').trim().toLowerCase();
+  //     if (!trimmedQuery) return { items: [], total: 0 };
+
+  //     const cacheKey = `search_products:${trimmedQuery}:${page}:${limit}`;
+
+  //     // 1️⃣ Redis cache check
+  //     const cached = await redisClient.get(cacheKey);
+  //     if (cached) {
+  //       return JSON.parse(cached);
+  //     }
+
+  //     // 2️⃣ Prisma search
+  //     const whereClause = {
+  //       OR: [
+  //         {
+  //           name: {
+  //             contains: trimmedQuery,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           description: {
+  //             contains: trimmedQuery,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           teffType: {
+  //             name: {
+  //               contains: trimmedQuery,
+  //               mode: 'insensitive',
+  //             },
+  //           },
+  //         },
+  //         {
+  //           quality: {
+  //             name: {
+  //               contains: trimmedQuery,
+  //               mode: 'insensitive',
+  //             },
+  //           },
+  //         },
+  //       ],
+  //     };
+
+  //     const [products, total] = await Promise.all([
+  //       prisma.teffProduct.findMany({
+  //         where: whereClause,
+  //         include: {
+  //           teffType: true,
+  //           quality: true,
+  //           images: true,
+  //         },
+  //         orderBy: { createdAt: 'desc' },
+  //         take: limit,
+  //         skip: (page - 1) * limit,
+  //       }),
+  //       prisma.teffProduct.count({ where: whereClause }),
+  //     ]);
+
+  //     // 3️⃣ Map to Product interface
+  //     const mappedProducts = products.map((prod) => {
+  //       const baseProduct = {
+  //         id: prod.id,
+  //         name: prod.name,
+  //         images: prod.images.map((img) => img.url),
+  //         description: prod.description ?? '',
+  //         price: prod.pricePerKg,
+  //         teffType: prod.teffType.name,
+  //         createdAt: prod.createdAt,
+  //         updatedAt: prod.updatedAt,
+  //       };
+
+  //       return prod.quality?.name
+  //         ? { ...baseProduct, quality: prod.quality.name }
+  //         : baseProduct;
+  //     });
+
+  //     // 4️⃣ Cache result (short TTL)
+  //     const payload = { items: mappedProducts, total };
+
+  //     await redisClient.set(
+  //       cacheKey,
+  //       JSON.stringify(payload),
+  //       { EX: 60 } // ⏱️ 1 minute cache
+  //     );
+
+  //     return payload;
+  //   } catch (error) {
+  //     console.error('❌ Error searching products:', error);
+  //     throw new Error('Failed to search products');
+  //   }
+  // }
 
 
 
@@ -294,7 +412,7 @@ export class ProductServiceImpl implements ProductService {
           pricePerKg: data.price,
           teffType: { connect: { id: newtype.id } },
           inStock: data.instock ?? true,
-          discount : data.discount ?? null
+          discount: data.discount ?? null
         };
 
         if (newquality) {
@@ -320,7 +438,10 @@ export class ProductServiceImpl implements ProductService {
         return newProd; // <-- ✔ IMPORTANT
       });
 
-      await redisClient.del('all_products');
+      const allProductsKeys = await redisClient.keys('all_products:*');
+      if (allProductsKeys.length > 0) {
+        await redisClient.del(allProductsKeys);
+      }
       await redisClient.del(`product:${result.id}`);
 
       return result; // <-- return transaction result
