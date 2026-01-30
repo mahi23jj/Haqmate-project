@@ -24,7 +24,7 @@ export interface FeedbackResponse {
 
 export interface FeedbackService {
   createFeedback(feedback: Feedback): Promise<FeedbackResponse>;
-  getFeedbackByProduct(productId: string): Promise<any>;
+  getFeedbackByProduct(productId: string , page?: number, limit?: number): Promise<any>;
   gettopfeedbacks(productId: string, userId?: string): Promise<any>;
 }
 
@@ -44,7 +44,9 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
     });
 
     if (existing) {
-      throw new Error("You have already submitted a review for this product.");
+       const error: any = new Error("You have already submitted a review for this product.");
+        error.statusCode = 409; // Conflict
+        throw error;
     }
 
     // Create if not exist
@@ -59,20 +61,21 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
     });
 
    
-     await redisClient.del(`product:${feedback.productId}`);
+    //  await redisClient.del(`product:${feedback.productId}`);
     
     return newFeedback;
 
   } catch (error) {
     console.error("❌ Error creating feedback:", error);
-    throw new Error("Error creating feedback");
-  }
+     throw error;
+}
+
 }
 
 
 
     // ✅ Get all feedbacks for a product + stats
-    async getFeedbackByProduct(productId: string) {
+    async getFeedbackByProduct(productId: string, page: number, limit: number): Promise<any> {
       try {
         // 1️⃣ Fetch all feedbacks for the product
         const feedbacks = await prisma.feedback.findMany({
@@ -92,6 +95,8 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
             rating: true,
             submittedAt: true,
           },
+          skip: (page - 1) * limit,
+          take: limit,
         });
 
         // 2️⃣ Aggregate average rating & total ratings
@@ -118,7 +123,10 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
       // Fetch top 2 feedbacks with highest ratings
       const topFeedbacks = await prisma.feedback.findMany({
         where: { productid : Productid},
-        orderBy: { rating: 'desc' },
+        orderBy: [
+        {  rating: 'desc' },
+        { submittedAt: 'desc' }
+        ],
         take: 2,
         select: {
           id: true,
@@ -158,19 +166,20 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
         _count: { rating: true },
       });
 
-      const combinedFeedbacks = [...topFeedbacks];
-      if (userFeedback) {
-        const alreadyIncluded = combinedFeedbacks.some((fb) => fb.user.id === userFeedback?.user.id);
-        if (!alreadyIncluded) {
-          combinedFeedbacks.push(userFeedback);
-        }
-      }
+     const feedback = [...topFeedbacks];
 
-      return {
-        feedback : combinedFeedbacks,
-        averageRating: stats._avg.rating ?? 0,
-        totalRatings: stats._count.rating ?? 0,
-      };
+    if (
+      userFeedback &&
+      !feedback.some((fb) => fb.user.id === userFeedback.user.id)
+    ) {
+      feedback.push(userFeedback);
+    }
+
+    return {
+      feedback,
+      averageRating: stats._avg.rating ?? 0,
+      totalRatings: stats._count.rating ?? 0,
+    };
     } catch (error) {
       console.error('❌ Error fetching top feedbacks:', error);
       throw new Error('Error fetching top feedbacks');
