@@ -16,9 +16,13 @@ export const config = {
   merchantAppId: process.env.merchantAppId,
   merchantCode: process.env.merchantCode,
   appSecret: process.env.appSecret,
-  PrivateKey: process.env.PrivateKey || '',
+  PrivateKey: Buffer
+    .from(process.env.PRIVATE_KEY_BASE64!, 'base64')
+    .toString('utf8'),
   GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
-
+  Redis_Host: process.env.redis_host || '',
+  Redis_Port: process.env.redis_port ? parseInt(process.env.redis_port) : 6379,
+  Redis_Password: process.env.redis_password || '',
 };
 
 

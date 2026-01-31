@@ -1,11 +1,13 @@
 import { createClient } from 'redis';
 
+import { config } from "./config.js";
+
 export const redisClient = createClient({
     username: 'default',
-    password: 'JLTYbPZXM5FeTKVyfsFQC7MuqFtyfJmd',
+    password: config.Redis_Password,
     socket: {
-        host: 'redis-17001.c114.us-east-1-4.ec2.cloud.redislabs.com',
-        port: 17001
+        host: config.Redis_Host,
+        port: config.Redis_Port
     }
 });
 
