@@ -1,0 +1,1 @@
+{"version":3,"file":"paymentservice.d.ts","sourceRoot":"","sources":["../../src/service/paymentservice.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,mBAAmB;IAClC,KAAK,EAAE,MAAM,CAAC;IACd,UAAU,CAAC,EAAE,MAAM,CAAC;CACrB;AAED,wBAAsB,gBAAgB,IAAI,OAAO,CAAC,mBAAmB,CAAC,CAoBrE;AAID;;;;;;;GAOG;AAGH,wBAAgB,sBAAsB,CAAC,OAAO,EAAE,GAAG,EAAE,SAAS,EAAC,GAAG,EAAE,iBAAiB,EAAE,GAAG,WAczF"}
