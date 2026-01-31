@@ -2,7 +2,7 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    "rootDir": ".",
+    "rootDir": "./src",
     "outDir": "./dist",
 
     // Environment Settings
@@ -35,6 +35,7 @@
     // "noPropertyAccessFromIndexSignature": true,
 
     // Recommended Options
+    "allowJs": true,
     "strict": true,
     "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
@@ -43,5 +44,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "include": ["src", "types", "lib"]
+  "include": ["src", "types"]
 }

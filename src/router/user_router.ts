@@ -1,7 +1,7 @@
 import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { auth } from "../../lib/auth.js";
+import { auth } from "../lib/auth.js";
 import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
 import { forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";

@@ -1,5 +1,5 @@
 import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "../../lib/auth.js";
+import { auth } from "../lib/auth.js";
 import type { Request, Response, NextFunction } from "express";
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {

@@ -47,7 +47,10 @@ router.get("/intents/:id", authMiddleware,
 async (req, res, next) => {
     try {
         const { id } = req.params;
-        const buyerId = req.auth.userId;
+        const buyerId = req.user;
+        if (!id) {
+            return res.status(400).json({ error: "Payment intent id is required" });
+        }
         if (!buyerId) {
             return res.status(401).json({ error: "User not authenticated" });
         }

@@ -1,5 +1,5 @@
 import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "../../lib/auth.js";
+import { auth } from "../lib/auth.js";
 export async function authMiddleware(req, res, next) {
     // Example: Check for an authorization header
     const session = await auth.api.getSession({

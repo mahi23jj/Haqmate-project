@@ -2,7 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from "cors";
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from '../lib/auth.js';
+import { auth } from './lib/auth.js';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { UserRouter } from './router/user_router.js';

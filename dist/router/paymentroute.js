@@ -48,6 +48,9 @@ router.post("/orders/:orderId/refund", async (req, res, next) => {
     const { orderId } = req.params;
     const { accountName, accountNumber, reason } = req.body;
     const userId = req.user;
+    if (!orderId) {
+        return res.status(400).json({ error: "Order ID is required" });
+    }
     if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
     }
@@ -79,6 +82,9 @@ router.post("/orders/:orderId/refund", async (req, res, next) => {
 router.patch("/refunds/:refundId", async (req, res, next) => {
     const { refundId } = req.params;
     const { status, adminNote } = req.body; // status = APPROVED | REJECTED
+    if (!refundId) {
+        return res.status(400).json({ error: "Refund ID is required" });
+    }
     const refund = await prisma.refundRequest.update({
         where: { id: refundId },
         data: { status, adminNote }

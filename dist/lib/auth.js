@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
-import { config } from "../src/config.js";
+import { config } from "../config.js";
 const prisma = new PrismaClient();
 const frontendOrigin = "*";
 /* ---------------- RESEND CLIENT ---------------- */
@@ -21,11 +21,11 @@ export const auth = betterAuth({
         emailOTP({
             expiresIn: 60, // ⏱️ 1 minutes (recommended)
             async sendVerificationOTP({ email, otp, type }) {
-                console.log("📨 OTP requested:", { email, otp, type });
+                console.log("f4e8 OTP requested:", { email, otp, type });
                 // Only send for forgot-password flow
                 // if (type !== "forget-password") return;
                 if (type !== "forget-password") {
-                    console.log("❌ Skipping non-forgot-password OTP");
+                    console.log("f6ab Skipping non-forgot-password OTP");
                     return;
                 }
                 try {
@@ -45,10 +45,10 @@ export const auth = betterAuth({
                           </div>
                         `,
                       }); */
-                    console.log("✅ OTP email sent to:", email);
+                    console.log("f195 OTP email sent to:", email);
                 }
                 catch (err) {
-                    console.error("❌ Failed to send OTP via Resend:", err);
+                    console.error("f6ab Failed to send OTP via Resend:", err);
                 }
             },
         }),
