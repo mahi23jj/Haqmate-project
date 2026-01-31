@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 
 import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
@@ -10,7 +11,7 @@ const router = Router();
 const products = new ProductServiceImpl();
 
 // get /products/popular - Retrieve popular products
-router.get("/products/popular", async (req, res, next) => {
+router.get("/products/popular", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 4, 1), 100);
     const result = await products.getpopularProducts(limit);
@@ -25,7 +26,7 @@ router.get("/products/popular", async (req, res, next) => {
 });
 
 // GET /products - Retrieve all products
-router.get("/products", async (req, res, next) => {
+router.get("/products", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
@@ -50,12 +51,12 @@ router.get("/products", async (req, res, next) => {
 });
 
 
-router.get('/products/search', async (req, res, next) => {
+router.get('/products/search', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const search = req.query.search as string;
+    const search = (req.query.search as string) ?? "";
     const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
-
+    
     const productsList = await products.searchProduct(search, page, limit);
 
     return res.status(200).json({
@@ -77,13 +78,13 @@ router.get('/products/search', async (req, res, next) => {
 // GET /products/:id - Retrieve a product by ID
 router.get("/products/:id",
   authMiddleware,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const productId = req.params.id;
 
       const userId = req.user;
 
-      if (!userId) {
+      if (typeof userId !== "string") {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
@@ -109,9 +110,14 @@ router.get("/products/:id",
 
 
 
-router.put("/stockupdate/:id", async (req, res, next) => {
+router.put("/stockupdate/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = req.params.id;
+
+     if (!productId) {
+        return res.status(404).json({ error: "Product not found" });
+    } 
+
     const isstock = await products.updatestock(productId);
 
     if (isstock) {
@@ -134,7 +140,7 @@ router.put("/stockupdate/:id", async (req, res, next) => {
 router.post(
   "/products",
   validate(createProductSchema),
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       // req.body is now validated and typed
       const { name, description, price, teffType, images, quality, instock } = req.body;

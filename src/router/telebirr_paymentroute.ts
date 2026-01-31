@@ -15,7 +15,7 @@ const router = Router();
 
 
 
-router.post("/telebirr/webhook", async (req, res) =>  {
+router.post("/telebirr/webhook", async (req: Request, res: Response) =>  {
   const signature = req.headers["x-signature"]; // Telebirr header
    const rawBody = req.body; 
    //const rawBody = req.rawbody; ??????

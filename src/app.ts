@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import cors from "cors";
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
@@ -23,7 +24,7 @@ export const app = express();
 
 if (config.isdev) {
   app.use(cors({
-    origin: (origin, cb) => cb(null, true), // Allow all origins
+    origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, true), // Allow all origins
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }));
@@ -44,7 +45,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Example route (protected demonstration done via authClient or session logic)
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req: Request, res: Response) => res.json({ ok: true }));
 
 
 // Register error handler after routes for proper propagation
@@ -62,11 +63,11 @@ app.use('/api/delivery', DeliveryRouter);
 app.use('/api/pay', PaymentRouter);
 app.use('/api/manualpayment', ScreenshotRouter);
 
-app.post("/apply/h5token", function (req, res) {
+app.post("/apply/h5token", function (req: Request, res: Response) {
   telebirr.authToken(req, res);
 });
 
-app.post("/create/order", async (req, res) => {
+app.post("/create/order", async (req: Request, res: Response) => {
   try {
     const result = await telebirr.createOrder(req, res);
     return res.status(200).json(result);  // only response

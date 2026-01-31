@@ -1,4 +1,5 @@
 import { Router, request } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { PaymentService } from "../service/chapa_paymentService.js";
 import { config } from "../config.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
@@ -23,7 +24,7 @@ router.post(
   "/intents",
   authMiddleware,
  /*  validateRequest(createPaymentIntentSchema), */
-  async (req: any, res) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const {orderId, currency, idempotencyKey, metadata } = req.body;
       const buyerId = req.user;
@@ -58,7 +59,7 @@ router.get(
   "/intents/:id",
   authMiddleware,
 //   validateRequest(getPaymentIntentSchema),
-  async (req: any, res) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const buyerId = req.auth.userId;
@@ -92,7 +93,7 @@ router.get(
 
 
 // for client link for chapawebhook
-router.get("/callback", async (req, res) => {
+router.get("/callback", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = req.query; // tx_ref will be here
 
@@ -111,7 +112,7 @@ router.get("/callback", async (req, res) => {
 });
 
 // Support POST too (just in case)
-router.post("/callback", async (req, res) => {
+router.post("/callback", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = req.body; // tx_ref may be here
     console.log("🔥 POST Callback received:", data);

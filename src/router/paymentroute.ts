@@ -78,7 +78,7 @@ router.post(
 );
 
 
-router.post("/orders/:orderId/refund", async (req, res) => {
+router.post("/orders/:orderId/refund", async (req: Request, res: Response, next: NextFunction) => {
     const { orderId } = req.params;
     const { accountName, accountNumber, reason } = req.body;
     const userId = req.user;
@@ -121,7 +121,7 @@ router.post("/orders/:orderId/refund", async (req, res) => {
 });
 
 
-router.patch("/refunds/:refundId", async (req, res) => {
+router.patch("/refunds/:refundId", async (req: Request, res: Response, next: NextFunction) => {
     const { refundId } = req.params;
     const { status, adminNote } = req.body; // status = APPROVED | REJECTED
 

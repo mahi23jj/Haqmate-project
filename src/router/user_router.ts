@@ -1,5 +1,6 @@
 import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { auth } from "../../lib/auth.js";
 import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
@@ -12,7 +13,7 @@ import { CartServiceImpl } from "../service/cartservice.js";
 
 const usersRouter = Router();
 
-usersRouter.get("/me", async (req, res) => {
+usersRouter.get("/me", async (req: Request, res: Response) => {
   try {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers), // <-- reads Authorization header
@@ -32,7 +33,7 @@ usersRouter.get("/me", async (req, res) => {
 //Content-Type: application/json
 usersRouter.post("/login",
   validate(loginSchema),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const { email, password, rememberMe } = req.body;
 
     try {
@@ -82,7 +83,7 @@ usersRouter.post("/login",
 usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const { username, email, password, phoneNumber } = req.body;
     const locationdate = req.location;
 
@@ -191,7 +192,7 @@ usersRouter.put("/user/update-status",
   validate(updatestatus),
   locationMiddleware,
   authMiddleware,
-  async (req, res) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user; // from auth middleware
       if (!userId) {
@@ -228,7 +229,7 @@ usersRouter.put("/user/update-status",
   });
 
 
-usersRouter.post("/forgot-password", async (req, res) => {
+usersRouter.post("/forgot-password", async (req: Request, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
@@ -264,7 +265,7 @@ usersRouter.post("/forgot-password", async (req, res) => {
 });
 
 
-usersRouter.post("/forgot-password/verify-otp", async (req, res) => {
+usersRouter.post("/forgot-password/verify-otp", async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
   try {
@@ -291,7 +292,7 @@ usersRouter.post("/forgot-password/verify-otp", async (req, res) => {
 usersRouter.post(
   "/forgot-password/reset",
   validate(forgetpasswordSchema),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const { email, otp, newPassword } = req.body;
 
     try {
@@ -317,7 +318,7 @@ usersRouter.post(
 // get user profile
 usersRouter.get("/profile",
   authMiddleware,
-  async (req, res) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user; // from auth middleware
       if (!userId) {
@@ -351,7 +352,7 @@ usersRouter.put("/user/update-profile",
   // validate(updatestatus),
   locationMiddleware,
   authMiddleware,
-  async (req, res) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user; // from auth middleware
       if (!userId) {
