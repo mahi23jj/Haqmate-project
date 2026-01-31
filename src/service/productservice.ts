@@ -60,7 +60,7 @@ export class ProductServiceImpl implements ProductService {
       });
 
 
-           const mappedProducts = products.map((prod) => {
+      const mappedProducts = products.map((prod) => {
         const baseProduct = {
           id: prod.id,
           name: prod.name,
@@ -76,7 +76,7 @@ export class ProductServiceImpl implements ProductService {
           : baseProduct;
       });
 
-      const payload = { items: mappedProducts};
+      const payload = { items: mappedProducts };
 
       // await redisClient.set(cacheKey, JSON.stringify(payload));
       return payload;
@@ -166,11 +166,6 @@ export class ProductServiceImpl implements ProductService {
       // Instantiate feedback service
 
       const feedbackData = await this.feedbackService.gettopfeedbacks(id, userid);
-
-
-
-
-
 
 
 
@@ -268,17 +263,7 @@ export class ProductServiceImpl implements ProductService {
                 },
               },
             },
-          },
-          {
-            quality: {
-              is: {
-                name: {
-                  contains: trimmedQuery,
-                  mode: Prisma.QueryMode.insensitive,
-                },
-              },
-            },
-          },
+          }
         ],
       };
 
@@ -298,6 +283,8 @@ export class ProductServiceImpl implements ProductService {
         prisma.teffProduct.count({ where: whereClause }),
       ]);
 
+
+
       const mappedProducts = products.map((prod) => {
         const baseProduct = {
           id: prod.id,
@@ -309,9 +296,9 @@ export class ProductServiceImpl implements ProductService {
           createdAt: prod.createdAt,
           updatedAt: prod.updatedAt,
         };
-        return prod.quality?.name
-          ? { ...baseProduct, quality: prod.quality.name }
-          : baseProduct;
+        return baseProduct;
+        /*     ? { ...baseProduct, quality: prod.quality.name }
+            : baseProduct; */
       });
 
       const payload = { items: mappedProducts, total };
