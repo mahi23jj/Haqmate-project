@@ -133,6 +133,7 @@ model TeffProduct {
   feedback    feedback[]
   discount    Float? // discount percentage
   inStock     Boolean      @default(true)
+  orderCount  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -336,7 +337,7 @@ model FeedbackAnalytics {
 
 model area {
   id        String   @id @default(uuid())
-  name      String   
+  name      String
   baseFee   Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

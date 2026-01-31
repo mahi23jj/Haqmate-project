@@ -408,12 +408,12 @@ export class OrderServiceImpl {
 
 
 
-    async getOrdersWithTracking(status?: OrderStatus, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
+    async getOrdersWithTracking(userId: any, status?: OrderStatus, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
         // Fetch directly from Prisma (cache removed)
         const whereClause = status ? { status } : {};
         const [orders, total] = await Promise.all([
             prisma.order.findMany({
-                where: whereClause,
+                where: { ...whereClause, userId },
                 select: {
                     id: true,
                     userId: true,
@@ -512,7 +512,7 @@ export class OrderServiceImpl {
             }
         });
 
-            
+
         if (!order) throw new NotFoundError('Order not found');
 
         return {
@@ -630,14 +630,54 @@ export class OrderServiceImpl {
         const productMap = new Map(dbProducts.map(p => [p.id, p]));
         let total = deliveryInfo.totalFee;
 
-        const orderItemsData = products.map(item => {
+        const orderItemsData: {
+            productId: string;
+            quantity: number;
+            packaging: number;
+            price: number;
+        }[] = [];
+
+        const updatePromises = products.map(item => {
             const prod = productMap.get(item.productId);
             if (!prod) throw new Error(`Invalid product ${item.productId}`);
+
             const qty = item.quantity ?? 1;
             const price = prod.pricePerKg * qty * item.packagingsize;
-            total += price;
-            return { productId: prod.id, quantity: qty, packaging: item.packagingsize, price };
+            total += price; // note: total += in loop might need to be handled carefully for concurrency
+
+            orderItemsData.push({
+                productId: prod.id,
+                quantity: qty,
+                packaging: item.packagingsize,
+                price,
+            });
+
+            // return the update promise
+            return prisma.teffProduct.update({
+                where: { id: item.productId },
+                data: { orderCount: { increment: qty } },
+            });
         });
+
+        // Wait for all updates in parallel
+        await Promise.all(updatePromises);
+
+
+        /*    const orderItemsData = products.map(item => {
+               const prod = productMap.get(item.productId);
+               if (!prod) throw new Error(`Invalid product ${item.productId}`);
+   
+               await prisma.teffProduct.update({
+                   where: { id: item.productId },
+                   data: { orderCount: { increment: item.quantity ?? 1 } },
+               });
+   
+   
+               const qty = item.quantity ?? 1;
+               const price = prod.pricePerKg * qty * item.packagingsize;
+               total += price;
+               return { productId: prod.id, quantity: qty, packaging: item.packagingsize, price };
+           }); */
 
         const trackingData = ORDER_TRACKING_STEPS.map(step => ({
             type: step.status,
@@ -667,9 +707,18 @@ export class OrderServiceImpl {
                     orderTrackings: { createMany: { data: trackingData } },
                 }
             });
+
+            await tx.cart.deleteMany({
+                where: { userId },
+            });
+
             // Tracking already created via nested createMany
             return createdOrder;
         });
+
+        // after order created clear cart
+
+
         return { id: order.id, totalAmount: total };
     }
 

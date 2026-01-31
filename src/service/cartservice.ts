@@ -28,7 +28,7 @@ export interface CartService {
         packaging: number,
         quantity: number
     ): Promise<void>;
-    removeItemFromCart(userId: string, productId: string, packaging: number): Promise<void>;
+    removeItemFromCart(cartId: string): Promise<void>;
     getCartItems(userId: string): Promise<any>;
     clearCart(userId: string): Promise<void>;
 
@@ -39,6 +39,22 @@ export interface CartService {
 
 
 export class CartServiceImpl implements CartService {
+
+    private calculateItemPrice(
+        pricePerKg: number,
+        quantity: number,
+        packagingSize: number,
+        discount: number
+    ): number {
+        const raw =
+            pricePerKg *
+            quantity *
+            packagingSize *
+            (1 - (discount ?? 0) / 100);
+
+        // round to avoid floating precision issues
+        return Math.round(raw);
+    }
 
     async preloadCartOnLogin(userId: string): Promise<any> {
         const cartItems = await prisma.cart.findMany({
@@ -156,219 +172,49 @@ export class CartServiceImpl implements CartService {
                 packaging: packagingsize
             }
         });
+
+        
     }
 
 
-    /*  async addToCart(
-         userId: string,
-         item: CartItem
-     ): Promise<void> {
- 
-         const cacheKey = `cart:${userId}`;
- 
-         // 1️⃣ Load cart from Redis or DB
-         let cached = await redisClient.get(cacheKey);
-         let cartData;
- 
-         if (!cached) {
-             cartData = await this.preloadCartOnLogin(userId);
-         } else {
-             cartData = JSON.parse(cached);
-         }
- 
-         const { productId, quantity, packagingsize } = item;
- 
-         // 2️⃣ Check existence in Redis (FAST)
-         const exists = cartData.cart.some(
-             (i: any) =>
-                 i.productId === productId &&
-                 i.packaging === packagingsize
-         );
- 
-         if (exists) {
-             throw new Error("Item already exists in cart");
-         }
- 
-         // 3️⃣ Create new cart item in Redis
-         cartData.cart.push({
-             id: crypto.randomUUID(), // temp Redis ID
-             productId,
-             packaging: packagingsize,
-             quantity
-         });
- 
-         cartData.updatedAt = Date.now();
- 
-         // 4️⃣ Save Redis
-         await redisClient.set(
-             cacheKey,
-             JSON.stringify(cartData),
-             { EX: 300 }
-         );
- 
-         // 5️⃣ Async DB sync (fire & forget)
-         this.syncCreateCartToDB(userId, item)
-             .catch(err => console.error("❌ Cart DB sync failed:", err));
-     }
- 
- 
-     async syncCreateCartToDB(
-         userId: string,
-         item: CartItem
-     ) {
-         await prisma.cart.create({
-             data: {
-                 userId,
-                 productId: item.productId,
-                 quantity: item.quantity,
-                 packaging: item.packagingsize
-             }
-         });
-     }
-  */
 
-    // async updateCartItemQuantity(
-    //     userId: string,
-    //     productId: string,
-    //     packaging: number,
-    //     quantity: number
-    // ): Promise<void> {
 
-    //     const cartKey = `cart:${userId}`;
 
-    //     // 1️⃣ Update Redis immediately (FAST)
-    //     if (quantity <= 0) {
-    //         // remove item
-    //         await redisClient.hDel(
-    //             cartKey,
-    //             `${productId}:${packaging}`
-    //         );
-    //     } else {
-    //         await redisClient.hSet(
-    //             cartKey,
-    //             `${productId}:${packaging}`,
-    //             JSON.stringify({ productId, packaging, quantity })
-    //         );
-    //     }
-
-    //     // Optional TTL
-    //     await redisClient.expire(cartKey, 300);
-
-    //     // 2️⃣ DB sync (NON-BLOCKING)
-    //     (async () => {
-    //         try {
-    //             if (quantity <= 0) {
-    //                 await prisma.cart.delete({
-    //                     where: {
-    //                         userId_productId_packaging: {
-    //                             userId,
-    //                             productId,
-    //                             packaging
-    //                         }
-    //                     }
-    //                 });
-    //             } else {
-    //                 await prisma.cart.upsert({
-    //                     where: {
-    //                         userId_productId_packaging: {
-    //                             userId,
-    //                             productId,
-    //                             packaging
-    //                         }
-    //                     },
-    //                     update: { quantity },
-    //                     create: {
-    //                         userId,
-    //                         productId,
-    //                         packaging,
-    //                         quantity
-    //                     }
-    //                 });
-    //             }
-    //         } catch (err) {
-    //             console.error("❌ Cart DB sync failed:", err);
-    //         }
-    //     })();
-    // }
 
     async updateCartItemQuantity(
         userId: string,
         productId: string,
-        packaging: number,
+        packagingSize: number,
         quantity: number
     ): Promise<void> {
-        try {
-            if (quantity <= 0) {
-                await prisma.cart.delete({
-                    where: {
-                        userId_productId_packaging: { userId, productId, packaging }
-                    }
-                });
-                return;
-            }
-
-            await prisma.cart.upsert({
-                where: {
-                    userId_productId_packaging: { userId, productId, packaging }
+        const existing = await prisma.cart.findUnique({
+            where: {
+                userId_productId_packaging: {
+                    userId,
+                    productId,
+                    packaging: packagingSize,
                 },
-                update: { quantity },
-                create: { userId, productId, packaging, quantity }
-            });
-        } catch (err) {
-            console.error("❌ Cart DB update failed:", err);
-            throw err;
+            },
+        });
+
+        if (!existing) {
+            throw new NotFoundError('Cart item not found');
         }
+
+        if (quantity <= 0) {
+            await prisma.cart.delete({ where: { id: existing.id } });
+            return;
+        }
+
+        await prisma.cart.update({
+            where: { id: existing.id },
+            data: { quantity },
+        });
+
+        
     }
 
 
-
-
-    // async updateCartItemQuantity(
-    //     userId: string,
-    //     productId: string,
-    //     packaging: number,
-    //     quantity: number
-    // ): Promise<void> {
-    //     try {
-    //         // If quantity is 0 → remove from cart
-    //         if (quantity <= 0) {
-    //             await prisma.cart.delete({
-    //                 where: {
-    //                     userId_productId_packaging: {
-    //                         userId,
-    //                         productId,
-    //                         packaging,
-    //                     },
-    //                 },
-    //             });
-    //             console.log("Cart item removed");
-    //             return;
-    //         }
-
-    //         // Update quantity
-    //         const updatedCart = await prisma.cart.update({
-    //             where: {
-    //                 userId_productId_packaging: {
-    //                     userId,
-    //                     productId,
-    //                     packaging,
-    //                 },
-    //             },
-    //             data: { quantity },
-    //         });
-
-    //         console.log("Cart item quantity updated:", updatedCart);
-
-    //     } catch (error: any) {
-    //         // Catch Prisma not-found error
-    //         if (error.code === "P2025") {
-    //             throw new NotFoundError("Cart item not found!");
-    //         }
-
-    //         console.error("❌ Error updating cart item quantity:", error);
-    //         throw error;
-    //     }
-    // }
 
     async updateCartItem(
         userId: string,
@@ -413,6 +259,8 @@ export class CartServiceImpl implements CartService {
             where: { id: cartId },
             data: { productId, packaging, quantity },
         });
+
+        
     }
 
 
@@ -430,6 +278,8 @@ export class CartServiceImpl implements CartService {
             }
 
             console.log('Cart item removed:', deletedCart);
+
+            
         } catch (error) {
             console.error('❌ Error removing cart item:', error);
             throw error;
@@ -453,7 +303,7 @@ export class CartServiceImpl implements CartService {
                                 name: true,
                                 pricePerKg: true,
                                 discount: true,
-                                images: { select: { url: true } },
+                                images: { take: 1, select: { url: true } },
                                 teffType: { select: { name: true } },
                                 quality: { select: { id: true, name: true } },
                             },
@@ -470,19 +320,27 @@ export class CartServiceImpl implements CartService {
             ]);
 
             if (!cartItems || !userInfo) {
-                return { cart: [], subtotalPrice: 0, ...userInfo };
+                return { cart: [], totalPrice: 0, deliveryFee: 0, subtotalPrice: 0, ...userInfo };
             }
+
+            // compute delivery fee from kg
+            // with 5kg - 60 birr 
 
             // 3️⃣ Compute subtotal and format cart in a single pass
             let subtotalPrice = 0;
+            let deliveryfee = 0
             const formattedCart = cartItems.map(item => {
-                const priceAfterDiscount =
-                    item.product.pricePerKg *
-                    item.quantity *
-                    item.packaging *
-                    (1 - (item.product.discount || 0) / 100);
 
-                subtotalPrice += priceAfterDiscount;
+                const itemTotal = this.calculateItemPrice(
+                    item.product.pricePerKg,
+                    item.quantity,
+                    item.packaging,
+                    item.product.discount ?? 0
+                );
+
+                deliveryfee += 12 * item.packaging * item.quantity; // 12 birr per kg
+
+                subtotalPrice += itemTotal;
 
                 return {
                     id: item.id,
@@ -490,7 +348,7 @@ export class CartServiceImpl implements CartService {
                     packagingSize: item.packaging,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
-                    totalPrice: priceAfterDiscount,
+                    totalPrice: itemTotal,
                     product: {
                         id: item.product.id,
                         name: item.product.name,
@@ -510,7 +368,9 @@ export class CartServiceImpl implements CartService {
             // const taxPrice = 0.15 * subtotalPrice;
             // const totalPrice = subtotalPrice + taxPrice;
 
-            const cartObj = { cart: formattedCart, subtotalPrice, ...userInfo };
+            let totalprice = subtotalPrice - deliveryfee;
+
+            const cartObj = { cart: formattedCart, totalPrice: totalprice, deliveryFee: deliveryfee, subtotalPrice: subtotalPrice, ...userInfo };
 
             // 4️⃣ Cache the result for 1 hour
             // await redisClient.setEx(`carts:${userId}`, 60 * 60, JSON.stringify(cartObj));
@@ -523,99 +383,7 @@ export class CartServiceImpl implements CartService {
     }
 
 
-    /*  async getCartItems(userId: string): Promise<any> {
-         try {
-  */
-    /*    // 1️⃣ Try cache first
-       const cached = await redisClient.get(`cart:${userId}`);
-       if (cached) {
-           return JSON.parse(cached);
-       }
 
-       // 2️⃣ Cache miss → preload cart from DB
-       await this.preloadCartOnLogin(userId);
-
-       // 3️⃣ Read again from cache (SAFE)
-       const fresh = await redisClient.get(`cart:${userId}`);
-       if (!fresh) {
-           throw new Error('Failed to preload cart into cache');
-       }
-
-       return JSON.parse(fresh);
-
-
-        const cartItems = await prisma.cart.findMany({
-           where: { userId },
-           include: {
-               product: {
-                   select: {
-                       id: true,
-                       name: true,
-                       pricePerKg: true,
-                       images: { select: { url: true } },
-                       teffType: { select: { name: true } },
-                       quality: { select: { id: true, name: true } },
-
-                       discount: true,
-                   },
-               },
-           },
-       });
-
-       const userinfo = await prisma.user.findUnique({
-           where: { id: userId },
-           select: {
-               area: {
-                   select: {
-                       id: true,
-                       name: true,
-                       baseFee: true,
-                   }
-               },
-               phoneNumber: true
-           }
-       })
-
-       const subtotalPrice = cartItems.reduce(
-           (total, item) =>
-               total + (item.product.pricePerKg * item.quantity * item.packaging * (1 - (item.product.discount || 0) / 100)),
-           0
-       );
-
-           const taxprice = 0.15 * subtotalPrice;
- 
-           const totalPrice = subtotalPrice + taxprice; 
-
-        const formattedCart = cartItems.map(item => ({
-           id: item.id,
-           quantity: item.quantity,
-           packagingSize: item.packaging,
-           createdAt: item.createdAt,
-           updatedAt: item.updatedAt,
-           totalprice: item.quantity * item.product.pricePerKg * item.packaging * (1 - (item.product.discount || 0) / 100),
-           product: {
-               id: item.product.id,
-               name: item.product.name,
-               pricePerKg: item.product.pricePerKg,
-               teffType: item.product.teffType.name,
-               quality: item.product.quality?.name ?? null,
-
-               // 👇 Only the first image
-               image: item.product.images.length > 0
-                   ? item.product.images[0]?.url
-                   : null
-           }
-       }));
-
-
-
-       return { cart: formattedCart, subtotalPrice, ...userinfo }; 
-   } catch (error) {
-       console.error('❌ Error fetching cart items:', error);
-       throw error;
-   }
-}
-*/
 
     async clearCart(userId: string): Promise<void> {
         try {
@@ -625,6 +393,8 @@ export class CartServiceImpl implements CartService {
                 },
             });
 
+
+            
             console.log(`Cleared ${deletedCarts.count} items from cart for user ${userId}`);
         } catch (error) {
             console.error('❌ Error clearing cart:', error);

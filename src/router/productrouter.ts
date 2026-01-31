@@ -9,6 +9,21 @@ const router = Router();
 
 const products = new ProductServiceImpl();
 
+// get /products/popular - Retrieve popular products
+router.get("/products/popular", async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 4, 1), 100);
+    const result = await products.getpopularProducts(limit);
+    return res.status(201).json({
+      status: "success",
+      message: "Retrieve popular products",
+      data: result.items,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /products - Retrieve all products
 router.get("/products", async (req, res, next) => {
   try {
@@ -62,34 +77,34 @@ router.get('/products/search', async (req, res, next) => {
 // GET /products/:id - Retrieve a product by ID
 router.get("/products/:id",
   authMiddleware,
-   async (req, res, next) => {
-  try {
-    const productId = req.params.id;
+  async (req, res, next) => {
+    try {
+      const productId = req.params.id;
 
-     const userId = req.user;
+      const userId = req.user;
 
-     if (!userId ) {
-       return res.status(401).json({ error: "Unauthorized" });
-     }
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-     if (!productId) {
-       return res.status(404).json({ error: "Product not found" });
-     }
+      if (!productId) {
+        return res.status(404).json({ error: "Product not found" });
+      }
 
 
 
-    const product = await products.getProductById(productId, userId);
-    if (product) {
-      return res.status(201).json({
-        status: "success",
-        message: "Retrieve a product by ID",
-        data: product,
-      });
+      const product = await products.getProductById(productId, userId);
+      if (product) {
+        return res.status(201).json({
+          status: "success",
+          message: "Retrieve a product by ID",
+          data: product,
+        });
+      }
+    } catch (error) {
+      next(error);
     }
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 
 

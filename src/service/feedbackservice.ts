@@ -61,7 +61,7 @@ async createFeedback(feedback: Feedback): Promise<FeedbackResponse> {
     });
 
    
-    //  await redisClient.del(`product:${feedback.productId}`);
+    await redisClient.del(`product:${feedback.productId}`);
     
     return newFeedback;
 

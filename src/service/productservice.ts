@@ -12,7 +12,7 @@ export interface ProductService {
 
 
 
-
+  getpopularProducts(limit?: number): Promise<{ items: Product[] }>;
   getAllProducts(page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   getProductById(id: string, userId: string): Promise<Product | null>;
   createProduct(data: CreateProductInput): any;
@@ -43,6 +43,50 @@ export class ProductServiceImpl implements ProductService {
   constructor(
     private feedbackService: FeedbackServiceImpl = new FeedbackServiceImpl()
   ) { }
+
+  // get popular product
+  async getpopularProducts(limit = 4): Promise<{ items: Product[] }> {
+    try {
+      const products = await prisma.teffProduct.findMany({
+        include: {
+          teffType: true,
+          quality: true,
+          images: true,
+        },
+        orderBy: {
+          orderCount: 'desc',
+        },
+        take: limit,
+      });
+
+
+           const mappedProducts = products.map((prod) => {
+        const baseProduct = {
+          id: prod.id,
+          name: prod.name,
+          images: prod.images.map(img => img.url),
+          description: prod.description ?? '',
+          price: prod.pricePerKg,
+          teffType: prod.teffType.name,
+          createdAt: prod.createdAt,
+          updatedAt: prod.updatedAt,
+        };
+        return prod.quality?.name
+          ? { ...baseProduct, quality: prod.quality.name }
+          : baseProduct;
+      });
+
+      const payload = { items: mappedProducts};
+
+      // await redisClient.set(cacheKey, JSON.stringify(payload));
+      return payload;
+
+      // return products;
+    } catch (error) {
+      console.error(error);
+      throw new Error('Failed to get popular products');
+    }
+  }
 
   async getAllProducts(page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
     try {
@@ -383,81 +427,101 @@ export class ProductServiceImpl implements ProductService {
 
 
 
-  async createProduct(
-    data: CreateProductInput
-  ) {
+  async createProduct(data: CreateProductInput) {
     try {
       const result = await prisma.$transaction(async (tx) => {
 
-        // 1️⃣ Find or create TeffType
-        let newtype = await tx.teffType.upsert({
-          where: { name: data.teffType },
-          update: { name: data.teffType },
-          create: { name: data.teffType },
-        }
-        )
+        // 🔹 Normalize inputs
+        const teffTypeName = data.teffType.trim();
+        const qualityName = data.quality?.trim();
 
-        // 2️⃣ Create TeffQuality if provided
+        // 1️⃣ Find or create TeffType
+        const newtype = await tx.teffType.upsert({
+          where: { name: teffTypeName },
+          update: {}, // nothing to update
+          create: { name: teffTypeName },
+        });
+
+
+
+        // 2️⃣ Find or create TeffQuality (if provided)
         let newquality = null;
-        if (data.quality) {
-          newquality = await tx.teffQuality.create({
-            data: { name: data.quality },
+        if (qualityName) {
+          newquality = await tx.teffQuality.upsert({
+            where: { name: qualityName },
+            update: {},
+            create: { name: qualityName },
           });
         }
 
         // 3️⃣ Prepare product data
         const productData: any = {
-          name: data.name,
+          name: data.name.trim(),
           description: data.description,
           pricePerKg: data.price,
           teffType: { connect: { id: newtype.id } },
           inStock: data.instock ?? true,
-          discount: data.discount ?? null
+          discount: data.discount ?? null,
         };
 
         if (newquality) {
           productData.quality = { connect: { id: newquality.id } };
         }
 
+        if (data.images && data.images.length > 0) {
+          productData.images = {
+            createMany: {
+              data: data.images.map((url) => ({ url })),
+            },
+          };
+        }
+
         // 4️⃣ Create product
         const newProd = await tx.teffProduct.create({
           data: productData,
-          include: { teffType: true, quality: true, images: true },
+          include: {
+            teffType: true,
+            quality: true,
+            images: true,
+          },
         });
 
-        // 5️⃣ Create images
-        if (data.images && data.images.length > 0) {
-          await tx.image.createMany({
-            data: data.images.map((url) => ({
-              url,
-              productId: newProd.id,
-            })),
-          });
+        return newProd;
+      }, { maxWait: 5000, timeout: 15000 });
+
+      // 🧹 Cache invalidation (non-blocking)
+      try {
+        const keys = await redisClient.keys('all_products:*');
+        if (keys.length) {
+          await redisClient.del(keys);
         }
-
-        return newProd; // <-- ✔ IMPORTANT
-      });
-
-      const allProductsKeys = await redisClient.keys('all_products:*');
-      if (allProductsKeys.length > 0) {
-        await redisClient.del(allProductsKeys);
-      }
-      await redisClient.del(`product:${result.id}`);
-
-      return result; // <-- return transaction result
-    }
-    catch (error: any) {
-      console.error("❌ Error creating product:", error);
-
-
-      if (error.code === "P2002") {
-        throw new AppError("Duplicate field value", 409);
+        await redisClient.del(`product:${result.id}`);
+      } catch (redisError) {
+        console.warn('⚠️ Redis cache clear failed:', redisError);
       }
 
-      throw new DatabaseError()
+      return result;
 
+    } catch (error: any) {
+      console.error('❌ Error creating product:', error);
+
+      // Prisma known errors
+      if (error.code === 'P2002') {
+        throw new AppError('Duplicate field value', 409);
+      }
+
+      if (error.code === 'P2003') {
+        throw new AppError('Invalid relation reference', 400);
+      }
+
+      if (error.code === 'P2025') {
+        throw new AppError('Related record not found', 404);
+      }
+
+      throw new DatabaseError();
     }
   }
+
 
 
 

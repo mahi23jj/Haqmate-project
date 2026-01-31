@@ -23,6 +23,8 @@ router.use(authMiddleware);
 // ----------------------------------------------------
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+
+    const userid = req.user;
     const statusParam = req.query.status as string | undefined;
     const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
@@ -37,7 +39,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         OrderStatus[statusParam.toUpperCase() as keyof typeof OrderStatus];
     }
 
-    const ordersList = await orders.getOrdersWithTracking(statusEnum, page, limit);
+    const ordersList = await orders.getOrdersWithTracking(userid, statusEnum, page, limit);
 
     return res.status(200).json({
       success: true,
@@ -105,7 +107,7 @@ router.post(
         idempotencyKey
       } = req.body;
 
-     
+
 
       console.log('products', req.body);
 
@@ -114,21 +116,21 @@ router.post(
       }
 
       console.log('elements of orderrecived $ $', orderReceived);
-        
 
-      const newOrder = await orders.createMultiOrder( {
+
+      const newOrder = await orders.createMultiOrder({
         userId,
-        locationId:location.id,
+        locationId: location.id,
         products,
         phoneNumber,
-        orderReceived:orderReceived,
+        orderReceived: orderReceived,
         paymentMethod,
         extraDistance,
         idempotencyKey
       }
-       
 
-      
+
+
       );
 
       return res.status(201).json({
