@@ -31,7 +31,10 @@ if (config.isdev) {
 } else {
   // production CORS settings
   app.use(cors({
-    origin: ["*"], // only your deployed frontend
+    origin: [
+      // "*"
+      "http://localhost:54056/"
+    ], // only your deployed frontend
     credentials: true,
   }));
 
