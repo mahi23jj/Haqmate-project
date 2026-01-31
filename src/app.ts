@@ -30,10 +30,11 @@ if (config.isdev) {
   }));
 } else {
   // production CORS settings
-  //   app.use(cors({
-  //   origin: ["https://teff-store.com"], // only your deployed frontend
-  //   credentials: true,
-  // }));
+  app.use(cors({
+    origin: ["*"], // only your deployed frontend
+    credentials: true,
+  }));
+
 }
 
 
