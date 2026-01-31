@@ -100,11 +100,15 @@
 
 
 import { OrderStatus, PaymentStatus, TrackingType, DeliveryStatus } from '@prisma/client';
+import type { Express } from 'express';
+import multer from 'multer';
 import { NotFoundError, ValidationError } from '../utils/apperror.js';
 import { supabase } from '../config.js';
 
 import { prisma } from '../prisma.js';
 import { OrderServiceImpl } from './orderservice.js';
+
+type MulterFile = Express.Multer.File;
 
 export class mannualpaymentServiceImpl {
 
@@ -115,7 +119,7 @@ export class mannualpaymentServiceImpl {
   // --------------------------------
   async submitPaymentScreenshot(
     orderId: string,
-    file: Express.Multer.File
+    file: MulterFile
   ) {
     if (!orderId) {
       throw new Error('Order ID is required');
