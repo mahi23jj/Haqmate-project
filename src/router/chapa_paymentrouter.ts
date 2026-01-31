@@ -276,7 +276,7 @@ router.post("/callback", async (req: Request, res: Response, next: NextFunction)
 // );
 
 
-router.post("/admin/cleanup", authMiddleware, async (req: any, res) => {
+router.post("/admin/cleanup", authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const cleanupResult = await cleanupService.manualCleanup();
     res.json({

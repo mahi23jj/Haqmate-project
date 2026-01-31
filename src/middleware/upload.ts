@@ -1,11 +1,13 @@
 import multer from 'multer';
+import type { Request, Express } from 'express';
+import type { FileFilterCallback } from 'multer';
 
 export const uploadPaymentScreenshot = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB
   },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files allowed'));
     }
