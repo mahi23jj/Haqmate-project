@@ -223,7 +223,7 @@ router.post("/callback", async (req, res, next) => {
 //     }
 //   }
 // );
-router.post("/admin/cleanup", authMiddleware, async (req, res) => {
+router.post("/admin/cleanup", authMiddleware, async (req, res, next) => {
     try {
         const cleanupResult = await cleanupService.manualCleanup();
         res.json({

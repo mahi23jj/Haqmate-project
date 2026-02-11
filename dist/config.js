@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { v2 as cloudinary } from 'cloudinary';
 dotenv.config();
 export const config = {
     RESEND_API_KEY: process.env.RESEND_API_KEY,
@@ -21,9 +22,18 @@ export const config = {
     Redis_Host: process.env.redis_host || '',
     Redis_Port: process.env.redis_port ? parseInt(process.env.redis_port) : 6379,
     Redis_Password: process.env.redis_password || '',
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
 };
 export const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY // IMPORTANT: service role key
 );
+cloudinary.config({
+    cloud_name: config.CLOUDINARY_CLOUD_NAME,
+    api_key: config.CLOUDINARY_API_KEY,
+    api_secret: config.CLOUDINARY_API_SECRET || '',
+});
+export { cloudinary };
 if (!config.databaseUrl) {
     // eslint-disable-next-line no-console
     console.warn('DATABASE_URL is not set. Set it in your environment.');

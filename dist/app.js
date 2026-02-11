@@ -26,10 +26,19 @@ if (config.isdev) {
 }
 else {
     // production CORS settings
-    //   app.use(cors({
-    //   origin: ["https://teff-store.com"], // only your deployed frontend
+    // app.use(cors({
+    //   origin: [
+    //     "*"
+    //     // "http://localhost:54056/"
+    //   ], // only your deployed frontend
     //   credentials: true,
     // }));
+    app.use(cors({
+        origin: (origin, callback) => {
+            callback(null, true); // allow all origins
+        },
+        credentials: true,
+    }));
 }
 app.use(helmet());
 app.use(cookieParser());

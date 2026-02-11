@@ -75,9 +75,8 @@
 //   }
 // };
 import { OrderStatus, PaymentStatus, TrackingType, DeliveryStatus } from '@prisma/client';
-import multer from 'multer';
 import { NotFoundError, ValidationError } from '../utils/apperror.js';
-import { supabase } from '../config.js';
+import { cloudinary } from '../config.js';
 import { prisma } from '../prisma.js';
 import { OrderServiceImpl } from './orderservice.js';
 export class mannualpaymentServiceImpl {
@@ -105,26 +104,25 @@ export class mannualpaymentServiceImpl {
             throw new Error('you are not allowed to upload screenshot');
         }
         // Generate file name
-        const fileExt = file.originalname.split('.').pop();
-        const fileName = `payments/${orderId}-${Date.now()}.${fileExt}`;
-        // Upload to Supabase
-        const { error: uploadError } = await supabase.storage
-            .from('payment-screenshots')
-            .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false
+        const fileName = `${orderId}-${Date.now()}`;
+        const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({
+                folder: 'payment-screenshots',
+                public_id: fileName,
+                resource_type: 'image',
+            }, (error, result) => {
+                if (error || !result) {
+                    reject(error ?? new Error('Cloudinary upload failed'));
+                    return;
+                }
+                resolve(result);
+            });
+            stream.end(file.buffer);
         });
-        if (uploadError) {
-            throw uploadError;
-        }
-        // Get public URL
-        const { data } = supabase.storage
-            .from('payment-screenshots')
-            .getPublicUrl(fileName);
         const updated = await prisma.order.update({
             where: { id: orderId },
             data: {
-                paymentProofUrl: data.publicUrl,
+                paymentProofUrl: uploadResult.secure_url,
                 paymentStatus: PaymentStatus.SCREENSHOT_SENT,
             }
         });
