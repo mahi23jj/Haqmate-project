@@ -101,9 +101,9 @@
 
 import { OrderStatus, PaymentStatus, TrackingType, DeliveryStatus } from '@prisma/client';
 import type { Express } from 'express';
-import multer from 'multer';
+import type { UploadApiResponse } from 'cloudinary';
 import { NotFoundError, ValidationError } from '../utils/apperror.js';
-import { supabase } from '../config.js';
+import { cloudinary } from '../config.js';
 
 import { prisma } from '../prisma.js';
 import { OrderServiceImpl } from './orderservice.js';
@@ -146,25 +146,27 @@ export class mannualpaymentServiceImpl {
     }
 
     // Generate file name
-    const fileExt = file.originalname.split('.').pop();
-    const fileName = `payments/${orderId}-${Date.now()}.${fileExt}`;
+    const fileName = `${orderId}-${Date.now()}`;
 
-    // Upload to Supabase
-    const { error: uploadError } = await supabase.storage
-      .from('payment-screenshots')
-      .upload(fileName, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false
-      });
+    const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'payment-screenshots',
+          public_id: fileName,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error || !result) {
+            reject(error ?? new Error('Cloudinary upload failed'));
+            return;
+          }
 
-    if (uploadError) {
-      throw uploadError;
-    }
+          resolve(result);
+        }
+      );
 
-    // Get public URL
-    const { data } = supabase.storage
-      .from('payment-screenshots')
-      .getPublicUrl(fileName);
+      stream.end(file.buffer);
+    });
 
      
 
@@ -172,7 +174,7 @@ export class mannualpaymentServiceImpl {
     const updated = await prisma.order.update({
       where: { id: orderId },
       data: {
-        paymentProofUrl: data.publicUrl,
+        paymentProofUrl: uploadResult.secure_url,
         paymentStatus: PaymentStatus.SCREENSHOT_SENT,
       }
     });
