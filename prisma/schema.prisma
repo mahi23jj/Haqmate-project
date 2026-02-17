@@ -360,6 +360,24 @@ model deliveryconfigration {
   updatedAt      DateTime @updatedAt
 }
 
+model AppSettings {
+  id           String   @id @default(uuid())
+  key          String   @unique @default("default")
+  companyName  String?
+  description  String?
+  logoUrl      String?
+  email        String?
+  phone        String?
+  address      String?
+  facebookUrl  String?
+  instagramUrl String?
+  twitterUrl   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
 model Cart {
   id        String      @id @default(uuid())
   userId    String
