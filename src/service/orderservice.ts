@@ -490,6 +490,57 @@ export class OrderServiceImpl {
     }
 
 
+    // update order status and add tracking step
+    async updateOrderStatus(orderId: string, paymentStatus?: PaymentStatus, deliveryStatus?: DeliveryStatus, deliveryDate?: Date | null) {
+        const order = await prisma.order.findUnique({ where: { id: orderId } });
+
+        if (!order) throw new NotFoundError('Order not found');
+
+        const data: any = {};
+
+        if (paymentStatus) {
+            data.paymentStatus = paymentStatus;
+            if (paymentStatus === PaymentStatus.CONFIRMED) {
+                data.status = OrderStatus.TO_BE_DELIVERED;
+                await this.updateTrackingStep(orderId, TrackingType.PAYMENT_CONFIRMED);
+            } else if (paymentStatus === PaymentStatus.DECLINED) {
+                data.status = OrderStatus.CANCELLED;
+                await this.updateTrackingStep(orderId, TrackingType.CANCELLED, "Payment declined");
+
+            }
+
+        }
+        if (deliveryStatus) {
+            data.deliveryStatus = deliveryStatus;
+
+            if (deliveryStatus === DeliveryStatus.SCHEDULED) {
+                await this.updateTrackingStep(orderId, TrackingType.DELIVERY_SCHEDULED);
+            } else if (deliveryStatus === DeliveryStatus.DELIVERED) {
+                data.status = OrderStatus.COMPLETED;
+                await this.updateTrackingStep(orderId, TrackingType.CONFIRMED, "Order delivered");
+            }
+        }
+        if (deliveryDate !== undefined && deliveryDate !== null) {
+            data.deliveryDate = deliveryDate;
+        }
+
+        if (data.deliveryStatus === DeliveryStatus.SCHEDULED && deliveryDate == null) {
+            throw new Error('Delivery date is required when delivery status is scheduled');
+        }
+
+
+        await prisma.order.update({
+            where: { id: orderId },
+            data
+        });
+    }
+
+    // assign delivery base fee and delivery fee per kg based on area
+
+
+       
+
+
     // ---------------------------
     // 2. Get Order Detail
     // ---------------------------
@@ -572,6 +623,67 @@ export class OrderServiceImpl {
         // Add tracking
         await this.updateTrackingStep(order.id, TrackingType.CANCELLED, "User requested cancellation");
     }
+
+    // get all order for admin and enable filter by status , paymen status and delivery status
+    async getAllOrders(status?: OrderStatus, paymentStatus?: PaymentStatus, deliveryStatus?: DeliveryStatus) {
+        const whereClause: any = {};
+        if (status) whereClause.status = status;
+        if (paymentStatus) whereClause.paymentStatus = paymentStatus;
+        if (deliveryStatus) whereClause.deliveryStatus = deliveryStatus;
+
+        const orders = await prisma.order.findMany({
+            where: whereClause,
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+                items: {
+                    include: {
+                        product: {
+                            select: { id: true, name: true, images: { take: 1, select: { url: true } } }
+                        }
+                    }
+                },
+                area: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return orders.map(o => ({
+            id: o.id,
+            userId: o.userId,
+            userName: o.user.name,
+            phoneNumber: o.phoneNumber,
+            location: o.area?.name,
+            totalAmount: o.totalAmount,
+            idempotencyKey: o.idempotencyKey,
+            paymentstatus: o.paymentStatus,
+            refundstatus: o.Refundstatus,
+            merchOrderId: o.merchOrderId,
+            orderrecived: o.orderrecived,
+            paymentMethod: o.paymentMethod,
+            deliveryFee: o.totalDeliveryFee,
+            deliverystatus: o.deliveryStatus,
+            deliveryDate: o.deliveryDate,
+            status: o.status,
+            createdAt: o.createdAt,
+            updatedAt: o.updatedAt,
+            items: o.items.map(it => ({
+                id: it.id,
+                quantity: it.quantity,
+                price: it.price,
+                packaging: it.packaging,
+                product: {
+                    id: it.product.id,
+                    name: it.product.name,
+                    images: it.product.images
+                }
+            })),
+        }));
+    }
+
+
+
+
+
 
     // ---------------------------
     // 4. Create Multi Order

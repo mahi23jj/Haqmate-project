@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from "express";
 import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
 import { createProductSchema } from '../validation/productvalidation.js'
-import { authMiddleware } from "../middleware/authmiddleware.js";
+import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
 
 const router = Router();
 
@@ -110,7 +110,7 @@ router.get("/products/:id",
 
 
 
-router.put("/stockupdate/:id", async (req: Request, res: Response, next: NextFunction) => {
+router.put("/stockupdate/:id",requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = req.params.id;
 
@@ -139,6 +139,7 @@ router.put("/stockupdate/:id", async (req: Request, res: Response, next: NextFun
 // post /products - Create a new product (example, not implemented in service)
 router.post(
   "/products",
+  requireAdmin,
   validate(createProductSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -3,7 +3,7 @@
 // import authMiddleware from "../middleware/auth";
 import { Router, request } from "express";
 import { CartServiceImpl } from "../service/cartservice.js";
-import { authMiddleware } from "../middleware/authmiddleware.js";
+import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
 import type { Request, Response, NextFunction } from "express";
 import { productMiddleware } from "../middleware/ordermiddleware.js";
 import { DeliveryServiceImpl } from "../service/delivery.js";
@@ -50,6 +50,18 @@ router.get("/location", async (req: Request, res: Response) => {
       status: "error",
       error: error.message || "Error fetching locations",
     });
+  }
+});
+
+
+router.post("/deliverycharge",requireAdmin ,async (req: Request, res: Response) => {
+  const { fee } = req.body;
+
+  try {
+    const charge = await Delivery.createdeliveryperkg(fee);
+    res.status(200).json({ status: "success", data: charge });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
   }
 });
 

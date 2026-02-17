@@ -173,7 +173,7 @@ export class CartServiceImpl implements CartService {
             }
         });
 
-        
+
     }
 
 
@@ -211,7 +211,7 @@ export class CartServiceImpl implements CartService {
             data: { quantity },
         });
 
-        
+
     }
 
 
@@ -260,7 +260,7 @@ export class CartServiceImpl implements CartService {
             data: { productId, packaging, quantity },
         });
 
-        
+
     }
 
 
@@ -279,7 +279,7 @@ export class CartServiceImpl implements CartService {
 
             console.log('Cart item removed:', deletedCart);
 
-            
+
         } catch (error) {
             console.error('❌ Error removing cart item:', error);
             throw error;
@@ -293,7 +293,7 @@ export class CartServiceImpl implements CartService {
                  if (cached) return JSON.parse(cached); */
 
             // 2️⃣ Fetch cart + product + user info in parallel
-            const [cartItems, userInfo] = await Promise.all([
+            const [cartItems, delivery, userInfo] = await Promise.all([
                 prisma.cart.findMany({
                     where: { userId },
                     include: {
@@ -310,6 +310,12 @@ export class CartServiceImpl implements CartService {
                         },
                     },
                 }),
+
+                prisma.deliveryconfigration.findUnique({
+                    where: { key: 'deliveryFeePerKg' },
+                    select: { feePerKg: true },
+                }),
+
                 prisma.user.findUnique({
                     where: { id: userId },
                     select: {
@@ -338,7 +344,7 @@ export class CartServiceImpl implements CartService {
                     item.product.discount ?? 0
                 );
 
-                deliveryfee += 12 * item.packaging * item.quantity; // 12 birr per kg
+                deliveryfee += (delivery?.feePerKg ?? 0) * item.packaging * item.quantity; // 12 birr per kg
 
                 subtotalPrice += itemTotal;
 
@@ -394,7 +400,7 @@ export class CartServiceImpl implements CartService {
             });
 
 
-            
+
             console.log(`Cleared ${deletedCarts.count} items from cart for user ${userId}`);
         } catch (error) {
             console.error('❌ Error clearing cart:', error);
