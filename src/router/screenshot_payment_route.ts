@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { mannualpaymentServiceImpl } from '../service/screanshoot_payment.js';
+import { requireAdmin } from '../middleware/authmiddleware.js';
 // import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -48,7 +49,9 @@ router.post(
 );
 
 // Approve payment screenshot
-router.post('/:orderId/approve', async (req: Request, res: Response) => {
+router.post('/:orderId/approve', 
+  requireAdmin,
+  async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 
@@ -63,13 +66,14 @@ router.post('/:orderId/approve', async (req: Request, res: Response) => {
 });
 
 // Reject payment screenshot
-router.post('/:orderId/reject', async (req: Request, res: Response) => {
+router.post('/:orderId/reject', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
+    const { reason } = req.body;
     if (!orderId) {
       throw new Error('Order ID is required');
     }
-    const order = await orders.rejectPayment(orderId);
+    const order = await orders.rejectPayment(orderId , reason);
     return res.status(200).json({ message: 'Payment rejected', order });
   } catch (error: any) {
     return res.status(400).json({ message: error.message || 'Failed to reject payment' });
@@ -77,7 +81,7 @@ router.post('/:orderId/reject', async (req: Request, res: Response) => {
 });
 
 // Schedule delivery date and confirm payment
-router.post('/:orderId/schedule', async (req: Request, res: Response) => {
+router.post('/:orderId/schedule', requireAdmin , async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 

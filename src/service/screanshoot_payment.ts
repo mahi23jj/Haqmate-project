@@ -168,7 +168,7 @@ export class mannualpaymentServiceImpl {
       stream.end(file.buffer);
     });
 
-     
+
 
 
     const updated = await prisma.order.update({
@@ -179,7 +179,7 @@ export class mannualpaymentServiceImpl {
       }
     });
 
-   //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+    //this\.orderServiceImpl\.invalidateOrdersCache\(\);
 
     return updated;
   }
@@ -197,7 +197,7 @@ export class mannualpaymentServiceImpl {
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundError('Order not found');
 
-   //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+    //this\.orderServiceImpl\.invalidateOrdersCache\(\);
 
     return prisma.order.update({
       where: { id: orderId },
@@ -208,7 +208,7 @@ export class mannualpaymentServiceImpl {
     });
   }
 
-  async rejectPayment(orderId: string) {
+  async rejectPayment(orderId: string , reason: string) {
     if (!orderId) {
       throw new ValidationError('Order ID is required');
     }
@@ -225,6 +225,7 @@ export class mannualpaymentServiceImpl {
       data: {
         paymentStatus: PaymentStatus.DECLINED,
         status: OrderStatus.CANCELLED,
+        cancelReason: "Payment screenshot rejected by admin"
       }
     });
   }
@@ -242,7 +243,11 @@ export class mannualpaymentServiceImpl {
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundError('Order not found');
 
-     //this\.orderServiceImpl\.invalidateOrdersCache\(\);
+    if (order.paymentStatus !== PaymentStatus.CONFIRMED || order.status !== OrderStatus.TO_BE_DELIVERED || order.deliveryStatus !== DeliveryStatus.NOT_SCHEDULED) {
+      throw new ValidationError('Order is not awaiting delivery scheduling');
+    }
+
+    //this\.orderServiceImpl\.invalidateOrdersCache\(\);
 
     return prisma.order.update({
       where: { id: orderId },
@@ -254,6 +259,6 @@ export class mannualpaymentServiceImpl {
       }
     });
   }
-  
+
 }
 
