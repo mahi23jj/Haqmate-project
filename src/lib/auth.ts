@@ -20,6 +20,16 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  // role based access control (RBAC) example
+  user:{
+    additionalFields: {
+      role: {
+        type: "string",
+        required: true,
+        default: "user",
+      },
+    },
+  },
 
   plugins: [
     bearer(),

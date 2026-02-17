@@ -125,7 +125,8 @@ usersRouter.post("/signup",
         body: {
           name: username,
           email,
-          password
+          password,
+          role: "user" // or another appropriate role string
         },
       });
 
