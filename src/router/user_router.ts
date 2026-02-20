@@ -84,7 +84,7 @@ usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
   async (req: Request, res: Response) => {
-    const { username, email, password, phoneNumber } = req.body;
+    const { username, email, password, phoneNumber , role } = req.body;
     const locationdate = req.location;
 
     try {
@@ -126,7 +126,7 @@ usersRouter.post("/signup",
           name: username,
           email,
           password,
-          role: "user" // or another appropriate role string
+          role: role || "user" // or another appropriate role string
         },
       });
 
