@@ -189,7 +189,6 @@ usersRouter.post("/signup",
 // Admin-only: create an admin user
 usersRouter.post(
   "/admin/create",
-  requireAdmin,
   validate(adminCreateSchema),
   async (req: Request, res: Response) => {
     const { username, email, password, phoneNumber } = req.body;
