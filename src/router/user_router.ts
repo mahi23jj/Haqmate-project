@@ -2,11 +2,10 @@ import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { auth } from "../lib/auth.js";
-import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
-import { forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
+import { adminCreateSchema, forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
-import { authMiddleware } from "../middleware/authmiddleware.js";
+import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
 import { prisma } from '../prisma.js';
 import { CartServiceImpl } from "../service/cartservice.js";
 
@@ -84,7 +83,7 @@ usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
   async (req: Request, res: Response) => {
-    const { username, email, password, phoneNumber , role } = req.body;
+    const { username, email, password, phoneNumber } = req.body;
     const locationdate = req.location;
 
     try {
@@ -126,7 +125,7 @@ usersRouter.post("/signup",
           name: username,
           email,
           password,
-          role: role || "user" // or another appropriate role string
+          role: "USER"
         },
       });
 
@@ -182,6 +181,80 @@ usersRouter.post("/signup",
       res.status(statusCode).json({
         success: false,
         error: errorMessage
+      });
+    }
+  }
+);
+
+// Admin-only: create an admin user
+usersRouter.post(
+  "/admin/create",
+  requireAdmin,
+  validate(adminCreateSchema),
+  async (req: Request, res: Response) => {
+    const { username, email, password, phoneNumber } = req.body;
+
+    try {
+      if (phoneNumber && !phoneNumber.startsWith('+251')) {
+        return res.status(400).json({
+          success: false,
+          error: "Phone number must start with +251"
+        });
+      }
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: "Email already exists"
+        });
+      }
+
+      if (phoneNumber) {
+        const existingPhone = await prisma.user.findFirst({
+          where: { phoneNumber }
+        });
+
+        if (existingPhone) {
+          return res.status(400).json({
+            success: false,
+            error: "Phone number already exists"
+          });
+        }
+      }
+
+      const session = await auth.api.signUpEmail({
+        body: {
+          name: username,
+          email,
+          password,
+          role: "ADMIN"
+        },
+      });
+
+      const userId = session?.user?.id;
+
+      if (userId && phoneNumber) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { phoneNumber },
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Admin user created successfully",
+        user: session.user,
+        token: session.token,
+      });
+    } catch (error: any) {
+      console.error("Admin create error:", error);
+      return res.status(400).json({
+        success: false,
+        error: error.message || "Admin creation failed",
       });
     }
   }

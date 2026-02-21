@@ -29,10 +29,9 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
         return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const userrole = session.user.role;
-    
+    const userrole = (session.user.role ?? "").toString().toUpperCase();
 
-    if (userrole !== "admin") {
+    if (userrole !== "ADMIN") {
         return res.status(403).json({ error: "Forbidden - Admins only" });
     }
     req.user = session.user.id;
