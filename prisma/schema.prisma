@@ -39,7 +39,7 @@ model User {
   cart          Cart[]
   order         Order[]
   RefundRequest RefundRequest[]
-  ole           Role            @default(USER)
+  role           Role            @default(USER)
 
   // feedback_request feedback_request[]
   feedback       feedback[]
