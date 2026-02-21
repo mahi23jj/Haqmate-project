@@ -5,6 +5,7 @@ import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
 import { createProductSchema } from '../validation/productvalidation.js'
 import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
+import { uploadProductImages } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -140,21 +141,22 @@ router.put("/stockupdate/:id",requireAdmin, async (req: Request, res: Response, 
 router.post(
   "/products",
   requireAdmin,
+  uploadProductImages.array('images', 6),
   validate(createProductSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       // req.body is now validated and typed
-      const { name, description, price, teffType, images, quality, instock } = req.body;
+      const { name, description, price, teffType, quality, instock } = req.body;
+      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
 
       const newProduct = await products.createProduct({
         name,
         description,
         price,
         teffType,
-        images,
         quality,
         instock,
-      });
+      }, files);
 
       return res.status(201).json({
         status: "success",

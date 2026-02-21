@@ -3,6 +3,9 @@ import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
 import type { promises } from 'dns';
 import type { CreateProductInput } from '../validation/productvalidation.js'
 import { FeedbackServiceImpl } from './feedbackservice.js';
+import type { Express } from 'express';
+import type { UploadApiResponse } from 'cloudinary';
+import { cloudinary } from '../config.js';
 
 
 import { prisma } from '../prisma.js';
@@ -15,7 +18,7 @@ export interface ProductService {
   getpopularProducts(limit?: number): Promise<{ items: Product[] }>;
   getAllProducts(page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   getProductById(id: string, userId: string): Promise<Product | null>;
-  createProduct(data: CreateProductInput): any;
+  createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
   updatestock(id: string): any;
   searchProduct(query: string, page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
@@ -414,8 +417,44 @@ export class ProductServiceImpl implements ProductService {
 
 
 
-  async createProduct(data: CreateProductInput) {
+  async createProduct(data: CreateProductInput, files: Express.Multer.File[] = []) {
+    type MulterFile = Express.Multer.File;
+
+    const uploadToCloudinary = (file: MulterFile) =>
+      new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'products',
+            resource_type: 'image',
+          },
+          (error, result) => {
+            if (error || !result) {
+              reject(error ?? new Error('Cloudinary upload failed'));
+              return;
+            }
+            resolve(result);
+          }
+        );
+
+        stream.end(file.buffer);
+      });
+
     try {
+      const uploadedUrls: string[] = [];
+
+      if (files.length > 0) {
+        const uploadResults = await Promise.all(files.map((file) => uploadToCloudinary(file)));
+        uploadedUrls.push(...uploadResults.map((item) => item.secure_url));
+      }
+
+      // if (uploadedUrls.length === 0 && data.images && data.images.length > 0) {
+      //   uploadedUrls.push(...data.images);
+      // }
+
+      if (uploadedUrls.length === 0) {
+        throw new AppError('At least one image is required', 400);
+      }
+
       const result = await prisma.$transaction(async (tx) => {
 
         // 🔹 Normalize inputs
@@ -455,10 +494,10 @@ export class ProductServiceImpl implements ProductService {
           productData.quality = { connect: { id: newquality.id } };
         }
 
-        if (data.images && data.images.length > 0) {
+        if (uploadedUrls.length > 0) {
           productData.images = {
             createMany: {
-              data: data.images.map((url) => ({ url })),
+              data: uploadedUrls.map((url) => ({ url })),
             },
           };
         }

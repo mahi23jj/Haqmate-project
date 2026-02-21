@@ -14,3 +14,17 @@ export const uploadPaymentScreenshot = multer({
     cb(null, true);
   }
 });
+
+export const uploadProductImages = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 6,
+  },
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files allowed'));
+    }
+    cb(null, true);
+  }
+});
