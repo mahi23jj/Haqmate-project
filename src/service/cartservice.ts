@@ -311,7 +311,7 @@ export class CartServiceImpl implements CartService {
                     },
                 }),
 
-                prisma.deliveryconfigration.findUnique({
+                (prisma as any).deliveryconfigration.findUnique({
                     where: { key: 'deliveryFeePerKg' },
                     select: { feePerKg: true },
                 }),
@@ -335,7 +335,7 @@ export class CartServiceImpl implements CartService {
             // 3️⃣ Compute subtotal and format cart in a single pass
             let subtotalPrice = 0;
             let deliveryfee = 0
-            const formattedCart = cartItems.map(item => {
+            const formattedCart = cartItems.map((item: any) => {
 
                 const itemTotal = this.calculateItemPrice(
                     item.product.pricePerKg,

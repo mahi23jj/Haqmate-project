@@ -16,7 +16,7 @@ export class SettingsServiceImpl {
   private readonly settingsKey = 'default';
 
   async getSettings() {
-    return prisma.appSettings.findUnique({
+    return (prisma as any).appSettings.findUnique({
       where: { key: this.settingsKey }
     });
   }
@@ -26,7 +26,7 @@ export class SettingsServiceImpl {
   }
 
   async upsertSettings(payload: SettingsPayload) {
-    return prisma.appSettings.upsert({
+    return (prisma as any).appSettings.upsert({
       where: { key: this.settingsKey },
       create: {
         key: this.settingsKey,

@@ -83,7 +83,7 @@ export class DeliveryServiceImpl implements DeliveryService {
   async createdeliveryperkg(fee: number): Promise<any> {
     try {
       // Replace 'id' with the actual unique identifier if different in your schema
-      const setting = await prisma.deliveryconfigration.upsert({
+      const setting = await (prisma as any).deliveryconfigration.upsert({
         where: { id: 'deliveryFeePerKg' },
         update: { feePerKg: fee },
         create: { id: 'deliveryFeePerKg', key: 'deliveryFeePerKg', feePerKg: fee },
