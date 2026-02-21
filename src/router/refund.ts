@@ -12,10 +12,6 @@ import { prisma } from '../prisma.js';
 const router = Router();
         const refundService = new RefundService();
 
-// 🔐 All order routes require auth
-router.use();
-
-
 router.post('/', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { orderId, reason, accountName, accountNumber } = req.body;
