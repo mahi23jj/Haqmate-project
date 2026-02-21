@@ -45,16 +45,16 @@ usersRouter.post("/login",
 
       res.status(200).json(session);
 
-    } catch (error : any) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      
+
       let statusCode = 400;
       let errorMessage = "Invalid email or password";
-      
+
       // Extract better error message from Better Auth
       if (error.message) {
         const message = error.message.toLowerCase();
-        
+
         if (message.includes("user not found") || message.includes("invalid email")) {
           errorMessage = "User not found";
         } else if (message.includes("invalid password") || message.includes("incorrect password")) {
@@ -69,10 +69,63 @@ usersRouter.post("/login",
           errorMessage = error.message;
         }
       }
-      
-      res.status(statusCode).json({ 
+
+      res.status(statusCode).json({
         success: false,
-        error: errorMessage 
+        error: errorMessage
+      });
+    }
+  }
+);
+
+
+usersRouter.post("/admin/login",
+
+  validate(loginSchema),
+  async (req: Request, res: Response) => {
+    const { email, password, rememberMe } = req.body;
+
+    try {
+      const session = await auth.api.signInEmail({
+        body: { email: email, password: password, rememberMe: rememberMe },
+      });
+
+
+      if (session.user.role !== "ADMIN") {
+        return res.status(403).json({ error: "Forbidden - Admins only" });
+      }
+
+
+      res.status(200).json(session);
+
+    } catch (error: any) {
+      console.error("Login error:", error);
+
+      let statusCode = 400;
+      let errorMessage = "Invalid email or password";
+
+      // Extract better error message from Better Auth
+      if (error.message) {
+        const message = error.message.toLowerCase();
+
+        if (message.includes("user not found") || message.includes("invalid email")) {
+          errorMessage = "User not found";
+        } else if (message.includes("invalid password") || message.includes("incorrect password")) {
+          errorMessage = "Incorrect password";
+        } else if (message.includes("email not verified")) {
+          errorMessage = "Email not verified. Please check your inbox.";
+          statusCode = 403;
+        } else if (message.includes("too many requests")) {
+          errorMessage = "Too many attempts. Please try again later.";
+          statusCode = 429;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: errorMessage
       });
     }
   }
@@ -155,15 +208,15 @@ usersRouter.post("/signup",
         token: session.token,
       });
 
-    } catch (error : any) {
+    } catch (error: any) {
       console.error("Signup error:", error);
-      
+
       let errorMessage = "Signup failed";
       let statusCode = 400;
-      
+
       if (error.message) {
         const message = error.message.toLowerCase();
-        
+
         if (message.includes("email already") || message.includes("duplicate")) {
           errorMessage = "Email already registered";
         } else if (message.includes("password") && message.includes("weak")) {
@@ -177,7 +230,7 @@ usersRouter.post("/signup",
           errorMessage = error.message;
         }
       }
-      
+
       res.status(statusCode).json({
         success: false,
         error: errorMessage
@@ -314,7 +367,7 @@ usersRouter.post("/forgot-password", async (req: Request, res: Response) => {
     await prisma.verification.deleteMany({
       where: {
         identifier: {
-          startsWith:`forget-password-otp-${email}`,
+          startsWith: `forget-password-otp-${email}`,
 
         },
       },
@@ -463,7 +516,7 @@ usersRouter.put("/user/update-profile",
       return res.status(200).json({
         status: "success",
         message: "User profile updated successfully",
-        data:updatedUser,
+        data: updatedUser,
       });
 
     } catch (error: any) {
