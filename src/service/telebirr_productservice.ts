@@ -14,7 +14,7 @@ export interface ProductService {
 
   getAllProducts(): Promise<Product[]>;
   getProductById(id: string): Promise<Product | null>;
-  createProduct(data: CreateProductInput): any;
+  createProduct(data: CreateProductInput & { images?: string[] }): any;
   updatestock(id: string): any;
   //   updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
   //   deleteProduct(id: number): Promise<boolean>;
@@ -146,7 +146,7 @@ export class ProductServiceImpl implements ProductService {
 
 
   async createProduct(
-    data: CreateProductInput
+    data: CreateProductInput & { images?: string[] }
   ) {
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -190,7 +190,7 @@ export class ProductServiceImpl implements ProductService {
         // 5️⃣ Create images
         if (data.images && data.images.length > 0) {
           await tx.image.createMany({
-            data: data.images.map((url) => ({
+            data: data.images.map((url: string) => ({
               url,
               productId: newProd.id,
             })),

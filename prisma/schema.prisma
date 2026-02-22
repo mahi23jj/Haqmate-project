@@ -139,6 +139,8 @@ model TeffProduct {
   feedback    feedback[]
   discount    Float? // discount percentage
   inStock     Boolean      @default(true)
+  rating      Float?        @default(0)
+  totalRating  Int          @default(0)
   orderCount  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -314,9 +316,9 @@ model feedback {
   id          String    @id @default(uuid())
   userId      String
   productid   String
-  rating      Int?
+  rating      Int
   message     String?
-  submittedAt DateTime?
+  submittedAt DateTime @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -326,6 +328,8 @@ model feedback {
 
   @@unique([userId, productid])
   @@index([productid])
+  @@index([productid, rating])
+  @@index([productid, submittedAt])
 }
 
 model FeedbackAnalytics {

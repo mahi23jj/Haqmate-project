@@ -95,7 +95,7 @@ router.get("/products/:id",
 
 
 
-      const product = await products.getProductById(productId, userId);
+      const product = await products.getProductById(productId, userId, req.session.user.role);
       if (product) {
         return res.status(201).json({
           status: "success",
