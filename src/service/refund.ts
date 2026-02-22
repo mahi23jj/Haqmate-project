@@ -63,9 +63,66 @@ export class RefundService {
         const whereClause = status ? { status } : {};
         const refunds = await prisma.refundRequest.findMany({
             where: whereClause,
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                orderId: true,
+                accountName: true,
+                accountNumber: true,
+                status: true,
+                reason: true,
+                phoneNumber: true,
+                createdAt: true,
+                updatedAt: true,
+                adminNote: true,
+                order: {
+                    select: {
+                        status: true,
+                        items: {
+                            select: {
+                                product: {
+                                    select: {
+                                        name: true,
+                                        pricePerKg: true,
+                                    }
+                                },
+                                quantity: true,
+                            }
+                        },
+                        paymentStatus: true,
+                        paymentProofUrl: true,
+                        totalAmount: true,
+                    }
+                }
+            }
         });
-        return refunds;
+
+
+        const refundvalue = refunds.map(refund => ({
+            id: refund.id,
+            orderId: refund.orderId,
+            accountName: refund.accountName,
+            accountNumber: refund.accountNumber,
+            status: refund.status,
+            reason: refund.reason,
+            phoneNumber: refund.phoneNumber,
+            createdAt: refund.createdAt,
+            updatedAt: refund.updatedAt,
+            rejectedReason: refund.adminNote,
+            totalAmount: refund.order.totalAmount,
+            orderStatus: refund.order.status,
+            paymentStatus: refund.order.paymentStatus,
+            paymentProofUrl: refund.order.paymentProofUrl ?? null,
+            items: refund.order.items.map(item => ({
+                productName: item.product.name,
+                pricePerKg: item.product.pricePerKg,
+                quantity: item.quantity,
+            }))
+
+        }));
+
+
+        return refundvalue;
 
     }
 
@@ -79,7 +136,7 @@ export class RefundService {
 
         const updatedRefund = await prisma.refundRequest.update({
             where: { id: refundId },
-            data: { status: newStatus, reason: reason || null }
+            data: { status: newStatus, adminNote: reason || null }
         });
 
         return {

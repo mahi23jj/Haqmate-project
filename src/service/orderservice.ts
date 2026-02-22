@@ -538,7 +538,7 @@ export class OrderServiceImpl {
     // assign delivery base fee and delivery fee per kg based on area
 
 
-       
+
 
 
     // ---------------------------
@@ -661,6 +661,7 @@ export class OrderServiceImpl {
             orderrecived: o.orderrecived,
             paymentMethod: o.paymentMethod,
             deliveryFee: o.totalDeliveryFee,
+            paymentProofUrl: o.paymentProofUrl ?? null,
             deliverystatus: o.deliveryStatus,
             deliveryDate: o.deliveryDate,
             status: o.status,

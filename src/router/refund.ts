@@ -10,25 +10,29 @@ import { RefundService } from '../service/refund.js';
 import { prisma } from '../prisma.js';
 
 const router = Router();
-        const refundService = new RefundService();
+const refundService = new RefundService();
 
 router.post('/', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { orderId, reason, accountName, accountNumber } = req.body;
-const userId = req.user as string | undefined; // Assuming auth middleware sets req.user to the authenticated user's ID
+        let { orderId, reason, accountName, accountNumber } = req.body;
+        const userId = req.user as string | undefined; // Assuming auth middleware sets req.user to the authenticated user's ID
 
-if (!userId) { 
-    return res.status(401).json({ error: 'Unauthorized' }); 
-}
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
-// get phone number from user profile if not provided in request
-const userphoneNumber = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { phoneNumber: true },
-}).then((user: { phoneNumber: any; } | null) => user?.phoneNumber);
+        // get phone number from user profile if not provided in request
+        const userphoneNumber = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { phoneNumber: true },
+        }).then((user: { phoneNumber: any; } | null) => user?.phoneNumber);
 
 
-        if (!orderId || !reason || !accountName || !accountNumber) {
+        if (!reason) {
+            reason = "No reason provided";
+        }
+
+        if (!orderId || !accountName || !accountNumber) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -48,27 +52,25 @@ const userphoneNumber = await prisma.user.findUnique({
 
 router.get('/', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
-    const status  = (req.query.status as string ) ?? "" ;
+        const status = ((req.query.status as string) ?? '').trim();
 
-    if (!status) {
-        return res.status(400).json({ error: 'Status is required' });
-    }
+        // Convert status string to RefundStatus enum only when status is provided
+        let statusEnum: RefundStatus | undefined;
+        if (status) {
+            if (status.toUpperCase() in RefundStatus) {
+                statusEnum = RefundStatus[status.toUpperCase() as keyof typeof RefundStatus];
+            } else {
+                return res.status(400).json({ error: 'Invalid refund status' });
+            }
+        }
 
-    // Convert status string to RefundStatus enum
-    let statusEnum: RefundStatus | undefined;
-    if (status.toUpperCase() in RefundStatus) {
-        statusEnum = RefundStatus[status.toUpperCase() as keyof typeof RefundStatus];
-    } else {
-        return res.status(400).json({ error: 'Invalid refund status' });
-    }
+        const refundStatus = await refundService.getRefundRequests(statusEnum);
 
-    const refundStatus = await refundService.getRefundRequests(statusEnum);
-
-    return res.status(200).json({
-        success: true,
-        message: 'Refund status retrieved successfully',
-        data: refundStatus
-    });
+        return res.status(200).json({
+            success: true,
+            message: 'Refund status retrieved successfully',
+            data: refundStatus
+        });
     } catch (error) {
         next(error);
     }
@@ -79,7 +81,7 @@ router.get('/', requireAdmin, async (req: Request, res: Response, next: NextFunc
 router.put('/:id/status', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const refundId = req.params.id;
-        const { status , reason} = req.body;
+        const { status, reason } = req.body;
 
         if (!refundId || !status) {
             return res.status(400).json({ error: 'Refund ID and status are required' });
@@ -98,7 +100,7 @@ router.put('/:id/status', requireAdmin, async (req: Request, res: Response, next
         return res.status(200).json({
             success: true,
             message: 'Refund status updated successfully',
-            data: updatedRefund 
+            data: updatedRefund
         });
     } catch (error) {
         next(error);
@@ -107,4 +109,4 @@ router.put('/:id/status', requireAdmin, async (req: Request, res: Response, next
 )
 
 
-export {router as refundrouter} ;
+export { router as refundrouter };
