@@ -18,7 +18,7 @@ export interface ProductService {
 
   getpopularProducts(limit?: number): Promise<{ items: Product[] }>;
   getAllProducts(page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
-  getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<Product & { feedback: any }>;
+  getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
   createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
   updatestock(id: string): any;
   searchProduct(query: string, page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
@@ -97,10 +97,10 @@ export class ProductServiceImpl implements ProductService {
   async getAllProducts(page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
     try {
 
-      const cacheKey = `all_products:${page}:${limit}`;
-
-      const cached = await redisClient.get(cacheKey);
-      if (cached) return JSON.parse(cached);
+      /*      const cacheKey = `all_products:${page}:${limit}`;
+     
+           const cached = await redisClient.get(cacheKey);
+           if (cached) return JSON.parse(cached); */
       // Fetch products with relations
       const [products, total] = await Promise.all([
         prisma.teffProduct.findMany({
@@ -139,7 +139,7 @@ export class ProductServiceImpl implements ProductService {
 
       const payload = { items: mappedProducts, total };
 
-      await redisClient.set(cacheKey, JSON.stringify(payload));
+      // await redisClient.set(cacheKey, JSON.stringify(payload));
       return payload;
 
 
@@ -164,9 +164,9 @@ export class ProductServiceImpl implements ProductService {
     userId: string,
     role: 'ADMIN' | 'USER'
   ) {
-    const cacheKey = `product:${id}:${role}`;
-    const cached = await redisClient.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    // const cacheKey = `product:${id}:${role}`;
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) return JSON.parse(cached); 
 
 
     try {
@@ -207,7 +207,7 @@ export class ProductServiceImpl implements ProductService {
         ...feedback
       };
 
-      await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
+      // await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
 
       return response;
 
