@@ -6,7 +6,7 @@ export declare const createProductSchema: z.ZodObject<{
     teffType: z.ZodString;
     quality: z.ZodOptional<z.ZodString>;
     discount: z.ZodOptional<z.ZodCoercedNumber<unknown>>;
-    instock: z.ZodCoercedBoolean<unknown>;
+    instock: z.ZodOptional<z.ZodDefault<z.ZodCoercedBoolean<unknown>>>;
 }, z.core.$strip>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 //# sourceMappingURL=productvalidation.d.ts.map

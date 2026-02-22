@@ -6,6 +6,6 @@ export const createProductSchema = z.object({
     teffType: z.string().min(1, { message: "Teff type is required" }).max(50, { message: "Teff type is too long" }),
     quality: z.string().max(50, { message: "Quality is too long" }).optional(),
     discount: z.coerce.number().min(0).max(100).optional(),
-    instock: z.coerce.boolean(),
+    instock: z.coerce.boolean().default(true).optional(),
 });
 //# sourceMappingURL=productvalidation.js.map

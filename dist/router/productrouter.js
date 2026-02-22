@@ -112,7 +112,7 @@ router.put("/stockupdate/:id", requireAdmin, async (req, res, next) => {
 router.post("/products", requireAdmin, uploadProductImages.array('images', 6), validate(createProductSchema), async (req, res, next) => {
     try {
         // req.body is now validated and typed
-        const { name, description, price, teffType, quality, instock } = req.body;
+        const { name, description, price, teffType, quality, instock = true } = req.body;
         const files = req.files ?? [];
         const newProduct = await products.createProduct({
             name,

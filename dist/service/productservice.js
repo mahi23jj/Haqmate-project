@@ -140,7 +140,7 @@ export class ProductServiceImpl {
                 images: product.images.map(img => img.url),
                 teffType: product.teffType.name,
                 quality: product.quality?.name ?? null,
-                feedback
+                ...feedback
             };
             await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
             return response;
