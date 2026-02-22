@@ -56,6 +56,21 @@ export class DeliveryServiceImpl {
             throw new Error("Error fetching locations");
         }
     }
+    async createdeliveryperkg(fee) {
+        try {
+            // Replace 'id' with the actual unique identifier if different in your schema
+            const setting = await prisma.deliveryconfigration.upsert({
+                where: { id: 'deliveryFeePerKg' },
+                update: { feePerKg: fee },
+                create: { id: 'deliveryFeePerKg', key: 'deliveryFeePerKg', feePerKg: fee },
+            });
+            return setting;
+        }
+        catch (error) {
+            console.error("❌ Error setting delivery fee per kg:", error);
+            throw new Error("Error setting delivery fee per kg");
+        }
+    }
     // async getlocation(): Promise<any> {
     //   try {
     //     return await prisma.area.findMany();

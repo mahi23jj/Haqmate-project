@@ -146,7 +146,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       // req.body is now validated and typed
-      const { name, description, price, teffType, quality, instock } = req.body;
+      const { name, description, price, teffType, quality, instock = true } = req.body;
       const files = (req.files as Express.Multer.File[] | undefined) ?? [];
 
       const newProduct = await products.createProduct({

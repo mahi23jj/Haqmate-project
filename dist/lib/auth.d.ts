@@ -3,6 +3,15 @@ export declare const auth: import("better-auth").Auth<{
         enabled: true;
     };
     database: (options: import("better-auth").BetterAuthOptions) => import("better-auth").DBAdapter<import("better-auth").BetterAuthOptions>;
+    user: {
+        additionalFields: {
+            role: {
+                type: "string";
+                required: true;
+                default: string;
+            };
+        };
+    };
     plugins: [{
         id: "bearer";
         hooks: {

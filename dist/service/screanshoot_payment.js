@@ -149,7 +149,7 @@ export class mannualpaymentServiceImpl {
             }
         });
     }
-    async rejectPayment(orderId) {
+    async rejectPayment(orderId, reason) {
         if (!orderId) {
             throw new ValidationError('Order ID is required');
         }
@@ -162,6 +162,7 @@ export class mannualpaymentServiceImpl {
             data: {
                 paymentStatus: PaymentStatus.DECLINED,
                 status: OrderStatus.CANCELLED,
+                cancelReason: "Payment screenshot rejected by admin"
             }
         });
     }
@@ -176,6 +177,9 @@ export class mannualpaymentServiceImpl {
         const order = await prisma.order.findUnique({ where: { id: orderId } });
         if (!order)
             throw new NotFoundError('Order not found');
+        if (order.paymentStatus !== PaymentStatus.CONFIRMED || order.status !== OrderStatus.TO_BE_DELIVERED || order.deliveryStatus !== DeliveryStatus.NOT_SCHEDULED) {
+            throw new ValidationError('Order is not awaiting delivery scheduling');
+        }
         //this\.orderServiceImpl\.invalidateOrdersCache\(\);
         return prisma.order.update({
             where: { id: orderId },

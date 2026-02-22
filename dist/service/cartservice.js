@@ -195,7 +195,7 @@ export class CartServiceImpl {
             /*      const cached = await redisClient.get(`carts:${userId}`);
                  if (cached) return JSON.parse(cached); */
             // 2️⃣ Fetch cart + product + user info in parallel
-            const [cartItems, userInfo] = await Promise.all([
+            const [cartItems, delivery, userInfo] = await Promise.all([
                 prisma.cart.findMany({
                     where: { userId },
                     include: {
@@ -211,6 +211,10 @@ export class CartServiceImpl {
                             },
                         },
                     },
+                }),
+                prisma.deliveryconfigration.findUnique({
+                    where: { key: 'deliveryFeePerKg' },
+                    select: { feePerKg: true },
                 }),
                 prisma.user.findUnique({
                     where: { id: userId },
@@ -228,9 +232,9 @@ export class CartServiceImpl {
             // 3️⃣ Compute subtotal and format cart in a single pass
             let subtotalPrice = 0;
             let deliveryfee = 0;
-            const formattedCart = cartItems.map(item => {
+            const formattedCart = cartItems.map((item) => {
                 const itemTotal = this.calculateItemPrice(item.product.pricePerKg, item.quantity, item.packaging, item.product.discount ?? 0);
-                deliveryfee += 12 * item.packaging * item.quantity; // 12 birr per kg
+                deliveryfee += (delivery?.feePerKg ?? 0) * item.packaging * item.quantity; // 12 birr per kg
                 subtotalPrice += itemTotal;
                 return {
                     id: item.id,

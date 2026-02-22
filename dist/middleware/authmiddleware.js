@@ -15,4 +15,19 @@ export async function authMiddleware(req, res, next) {
     req.user = user;
     next();
 }
+// require admin role middleware
+export async function requireAdmin(req, res, next) {
+    const session = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
+    });
+    if (!session) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    const userrole = (session.user.role ?? "").toString().toUpperCase();
+    if (userrole !== "ADMIN") {
+        return res.status(403).json({ error: "Forbidden - Admins only" });
+    }
+    req.user = session.user.id;
+    next();
+}
 //# sourceMappingURL=authmiddleware.js.map

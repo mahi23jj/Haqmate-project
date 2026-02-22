@@ -15,6 +15,12 @@ export declare const registerSchema: z.ZodObject<{
     username: z.ZodString;
     phoneNumber: z.ZodString;
 }, z.core.$strip>;
+export declare const adminCreateSchema: z.ZodObject<{
+    email: z.ZodEmail;
+    password: z.ZodString;
+    username: z.ZodString;
+    phoneNumber: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
 export declare const updatestatus: z.ZodObject<{
     phoneNumber: z.ZodOptional<z.ZodString>;
     location: z.ZodOptional<z.ZodString>;

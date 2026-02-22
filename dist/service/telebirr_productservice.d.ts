@@ -3,7 +3,9 @@ import { FeedbackServiceImpl } from './feedbackservice.js';
 export interface ProductService {
     getAllProducts(): Promise<Product[]>;
     getProductById(id: string): Promise<Product | null>;
-    createProduct(data: CreateProductInput): any;
+    createProduct(data: CreateProductInput & {
+        images?: string[];
+    }): any;
     updatestock(id: string): any;
 }
 export interface Product {
@@ -23,7 +25,9 @@ export declare class ProductServiceImpl implements ProductService {
     getAllProducts(): Promise<Product[]>;
     getProductById(id: string): Promise<Product>;
     updatestock(id: string): Promise<any>;
-    createProduct(data: CreateProductInput): Promise<{
+    createProduct(data: CreateProductInput & {
+        images?: string[];
+    }): Promise<{
         teffType: {
             id: string;
             name: string;
@@ -48,6 +52,8 @@ export declare class ProductServiceImpl implements ProductService {
         qualityId: string | null;
         discount: number | null;
         inStock: boolean;
+        rating: number | null;
+        totalRating: number;
         orderCount: number;
     }>;
 }

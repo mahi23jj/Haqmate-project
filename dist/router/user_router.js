@@ -1,11 +1,10 @@
 import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
 import { auth } from "../lib/auth.js";
-import { PrismaClient } from '@prisma/client';
 import { validate } from "../middleware/validate.js";
-import { forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
+import { adminCreateSchema, forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
 import { locationMiddleware } from "../middleware/ordermiddleware.js";
-import { authMiddleware } from "../middleware/authmiddleware.js";
+import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
 import { prisma } from '../prisma.js';
 import { CartServiceImpl } from "../service/cartservice.js";
 const usersRouter = Router();
@@ -33,6 +32,48 @@ usersRouter.post("/login", validate(loginSchema), async (req, res) => {
         });
         const value = new CartServiceImpl();
         await value.preloadCartOnLogin(session.user.id);
+        res.status(200).json(session);
+    }
+    catch (error) {
+        console.error("Login error:", error);
+        let statusCode = 400;
+        let errorMessage = "Invalid email or password";
+        // Extract better error message from Better Auth
+        if (error.message) {
+            const message = error.message.toLowerCase();
+            if (message.includes("user not found") || message.includes("invalid email")) {
+                errorMessage = "User not found";
+            }
+            else if (message.includes("invalid password") || message.includes("incorrect password")) {
+                errorMessage = "Incorrect password";
+            }
+            else if (message.includes("email not verified")) {
+                errorMessage = "Email not verified. Please check your inbox.";
+                statusCode = 403;
+            }
+            else if (message.includes("too many requests")) {
+                errorMessage = "Too many attempts. Please try again later.";
+                statusCode = 429;
+            }
+            else {
+                errorMessage = error.message;
+            }
+        }
+        res.status(statusCode).json({
+            success: false,
+            error: errorMessage
+        });
+    }
+});
+usersRouter.post("/admin/login", validate(loginSchema), async (req, res) => {
+    const { email, password, rememberMe } = req.body;
+    try {
+        const session = await auth.api.signInEmail({
+            body: { email: email, password: password, rememberMe: rememberMe },
+        });
+        if (session.user.role !== "ADMIN") {
+            return res.status(403).json({ error: "Forbidden - Admins only" });
+        }
         res.status(200).json(session);
     }
     catch (error) {
@@ -103,7 +144,8 @@ usersRouter.post("/signup", locationMiddleware, validate(registerSchema), async 
             body: {
                 name: username,
                 email,
-                password
+                password,
+                role: "USER"
             },
         });
         // 2️⃣ Get user ID from session
@@ -156,6 +198,66 @@ usersRouter.post("/signup", locationMiddleware, validate(registerSchema), async 
         res.status(statusCode).json({
             success: false,
             error: errorMessage
+        });
+    }
+});
+// Admin-only: create an admin user
+usersRouter.post("/admin/create", validate(adminCreateSchema), async (req, res) => {
+    const { username, email, password, phoneNumber } = req.body;
+    try {
+        if (phoneNumber && !phoneNumber.startsWith('+251')) {
+            return res.status(400).json({
+                success: false,
+                error: "Phone number must start with +251"
+            });
+        }
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
+        });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                error: "Email already exists"
+            });
+        }
+        if (phoneNumber) {
+            const existingPhone = await prisma.user.findFirst({
+                where: { phoneNumber }
+            });
+            if (existingPhone) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Phone number already exists"
+                });
+            }
+        }
+        const session = await auth.api.signUpEmail({
+            body: {
+                name: username,
+                email,
+                password,
+                role: "ADMIN"
+            },
+        });
+        const userId = session?.user?.id;
+        if (userId && phoneNumber) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { phoneNumber },
+            });
+        }
+        return res.status(201).json({
+            success: true,
+            message: "Admin user created successfully",
+            user: session.user,
+            token: session.token,
+        });
+    }
+    catch (error) {
+        console.error("Admin create error:", error);
+        return res.status(400).json({
+            success: false,
+            error: error.message || "Admin creation failed",
         });
     }
 });

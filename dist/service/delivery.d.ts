@@ -13,6 +13,7 @@ export interface DeliveryService {
     deletelocation(id: string): Promise<any>;
     updatelocation(id: string, location: string, km: number): Promise<any>;
     deliverycharge(location: string, extradistance: ExtraDistanceLevel): Promise<any>;
+    createdeliveryperkg(fee: number): Promise<any>;
 }
 export declare class DeliveryServiceImpl implements DeliveryService {
     createlocation(location: string, km: number): Promise<any>;
@@ -20,6 +21,7 @@ export declare class DeliveryServiceImpl implements DeliveryService {
         items: any[];
         total: number;
     }>;
+    createdeliveryperkg(fee: number): Promise<any>;
     getlocationbyid(id: string): Promise<any>;
     deletelocation(id: string): Promise<any>;
     updatelocation(id: string, location: string, km: number): Promise<any>;

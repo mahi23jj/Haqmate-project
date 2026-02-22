@@ -49,7 +49,7 @@ router.get("/:productId", async (req, res, next) => {
         if (!productId) {
             return res.status(404).json({ error: "Product not found" });
         }
-        const Product = await Feedbacks.getFeedbackByProduct(productId, page, limit);
+        const Product = await Feedbacks.getFeedbackByProduct(productId, { page, limit });
         return res.status(200).json({
             status: "success",
             message: "Retrieve a feedback by ID",

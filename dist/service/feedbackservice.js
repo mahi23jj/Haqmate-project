@@ -19,16 +19,53 @@ export class FeedbackServiceImpl {
                 error.statusCode = 409; // Conflict
                 throw error;
             }
-            // Create if not exist
-            const newFeedback = await prisma.feedback.create({
-                data: {
-                    productid: feedback.productId,
+            const newFeedback = await prisma.$transaction(async (tx) => {
+                // Create if not exist
+                await tx.feedback.create({
+                    data: {
+                        productid: feedback.productId,
+                        userId: feedback.userId,
+                        message: feedback.comment,
+                        rating: feedback.rating,
+                        submittedAt: new Date(),
+                    },
+                });
+                const stats = await tx.feedback.aggregate({
+                    where: { productid: feedback.productId },
+                    _avg: { rating: true },
+                    _count: { rating: true }
+                });
+                await tx.teffProduct.update({
+                    where: { id: feedback.productId },
+                    data: {
+                        rating: stats._avg.rating ?? 0,
+                        totalRating: stats._count.rating
+                    }
+                });
+                return {
+                    id: feedback.userId + '-' + feedback.productId,
                     userId: feedback.userId,
-                    message: feedback.comment,
+                    productid: feedback.productId,
                     rating: feedback.rating,
+                    message: feedback.comment,
                     submittedAt: new Date(),
-                },
+                };
             });
+            // // updat the rating of the product from feedback table
+            //   const product = await prisma.teffProduct.findUnique({
+            //   where: { id: feedback.productId },
+            // });
+            // if (product) {
+            //   const newTotalRatings = (product.totalRating || 0) + 1;
+            //   const newRating = ((product.rating || 0) * (newTotalRatings - 1) + feedback.rating) / newTotalRatings;
+            //   await prisma.teffProduct.update({
+            //     where: { id: feedback.productId },
+            //     data: {
+            //       rating: newRating,
+            //       totalRating: newTotalRatings
+            //     }
+            //   });
+            // }
             await redisClient.del(`product:${feedback.productId}`);
             return newFeedback;
         }
@@ -38,30 +75,50 @@ export class FeedbackServiceImpl {
         }
     }
     // ✅ Get all feedbacks for a product + stats
-    async getFeedbackByProduct(productId, page, limit) {
+    async getFeedbackByProduct(productId, options) {
+        const { page = 1, limit = 10, topOnly = false, includeUserId } = options || {};
         try {
-            // 1️⃣ Fetch all feedbacks for the product
-            const feedbacks = await prisma.feedback.findMany({
+            const query = {
                 where: { productid: productId },
-                orderBy: { submittedAt: 'desc' }, // latest first
+                orderBy: [
+                    { rating: 'desc' },
+                    { submittedAt: 'desc' }
+                ],
                 select: {
                     id: true,
-                    productid: true,
-                    // include all use information
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                        }
-                    },
-                    message: true,
+                    userId: true,
                     rating: true,
+                    message: true,
                     submittedAt: true,
-                },
-                skip: (page - 1) * limit,
-                take: limit,
-            });
-            // 2️⃣ Aggregate average rating & total ratings
+                    user: {
+                        select: { id: true, name: true }
+                    }
+                }
+            };
+            if (topOnly) {
+                query.take = 3;
+            }
+            else {
+                query.skip = (page - 1) * limit;
+                query.take = limit;
+            }
+            const feedbacks = await prisma.feedback.findMany(query);
+            // 🔥 Optional: include current user's review
+            if (includeUserId && topOnly) {
+                const exists = feedbacks.some(f => f.userId === includeUserId);
+                if (!exists) {
+                    const userReview = await prisma.feedback.findUnique({
+                        where: {
+                            userId_productid: {
+                                userId: includeUserId,
+                                productid: productId
+                            }
+                        },
+                    });
+                    if (userReview)
+                        feedbacks.push(userReview);
+                }
+            }
             const stats = await prisma.feedback.aggregate({
                 where: { productid: productId },
                 _avg: { rating: true },
@@ -71,13 +128,52 @@ export class FeedbackServiceImpl {
                 feedback: feedbacks,
                 averageRating: stats._avg.rating ?? null,
                 totalRatings: stats._count.rating,
+                total: stats._count.rating,
             };
         }
         catch (error) {
-            console.error('❌ Error getting feedbacks:', error);
-            throw new Error('Error getting feedbacks');
+            throw new Error(`Error fetching feedbacks`);
         }
     }
+    // async getFeedbackByProduct(productId: string, page: number, limit: number): Promise<any> {
+    //   try {
+    //     // 1️⃣ Fetch all feedbacks for the product
+    //     const feedbacks = await prisma.feedback.findMany({
+    //       where: { productid: productId },
+    //       orderBy: { submittedAt: 'desc' }, // latest first
+    //       select: {
+    //         id: true,
+    //         productid: true,
+    //         // include all use information
+    //         user: {
+    //           select: {
+    //             id: true,
+    //             name: true,
+    //           }
+    //         },
+    //         message: true,
+    //         rating: true,
+    //         submittedAt: true,
+    //       },
+    //       skip: (page - 1) * limit,
+    //       take: limit,
+    //     });
+    //     // 2️⃣ Aggregate average rating & total ratings
+    //     const stats = await prisma.feedback.aggregate({
+    //       where: { productid: productId },
+    //       _avg: { rating: true },
+    //       _count: { rating: true },
+    //     });
+    //     return {
+    //       feedback:feedbacks,
+    //       averageRating: stats._avg.rating ?? null,
+    //       totalRatings: stats._count.rating,
+    //     };
+    //   } catch (error) {
+    //     console.error('❌ Error getting feedbacks:', error);
+    //     throw new Error('Error getting feedbacks');
+    //   }
+    // }
     async gettopfeedbacks(Productid, userId) {
         try {
             // Fetch top 2 feedbacks with highest ratings

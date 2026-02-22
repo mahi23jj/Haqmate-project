@@ -52,7 +52,7 @@ export declare class mannualpaymentServiceImpl {
         cancelReason: string | null;
         refundAmount: number | null;
     }>;
-    rejectPayment(orderId: string): Promise<{
+    rejectPayment(orderId: string, reason: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;

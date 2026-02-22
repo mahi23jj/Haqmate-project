@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
 import { FeedbackServiceImpl } from './feedbackservice.js';
+import { cloudinary } from '../config.js';
 import { prisma } from '../prisma.js';
 import { redisClient } from '../redis_test.js';
 // Note: Actual implementation would interact with a database using an ORM like Prisma.
@@ -32,6 +33,8 @@ export class ProductServiceImpl {
                     description: prod.description ?? '',
                     price: prod.pricePerKg,
                     teffType: prod.teffType.name,
+                    rating: prod.rating,
+                    totalRating: prod.totalRating,
                     createdAt: prod.createdAt,
                     updatedAt: prod.updatedAt,
                 };
@@ -80,6 +83,9 @@ export class ProductServiceImpl {
                     teffType: prod.teffType.name,
                     createdAt: prod.createdAt,
                     updatedAt: prod.updatedAt,
+                    inStock: prod.inStock,
+                    rating: prod.rating,
+                    totalRating: prod.totalRating,
                 };
                 return prod.quality?.name
                     ? { ...baseProduct, quality: prod.quality.name }
@@ -94,13 +100,18 @@ export class ProductServiceImpl {
             throw new Error('Failed to fetch products');
         }
     }
-    async getProductById(id, userid) {
-        const cacheKey = `product:${id}`;
+    // async getProductById(id: string, userid: string): Promise<Product> {
+    //   const cacheKey = `product:${id}`;
+    //   const cached = await redisClient.get(cacheKey);
+    //   if (cached) return JSON.parse(cached);
+    //   let feedbackData = null;
+    async getProductById(id, userId, role) {
+        const cacheKey = `product:${id}:${role}`;
         const cached = await redisClient.get(cacheKey);
         if (cached)
             return JSON.parse(cached);
         try {
-            const prod = await prisma.teffProduct.findUnique({
+            const product = await prisma.teffProduct.findUnique({
                 where: { id },
                 include: {
                     teffType: true,
@@ -108,29 +119,31 @@ export class ProductServiceImpl {
                     images: true,
                 },
             });
-            if (!prod) {
+            if (!product)
                 throw new NotFoundError("Product not found");
-            }
-            // Instantiate feedback service
-            const feedbackData = await this.feedbackService.gettopfeedbacks(id, userid);
-            const baseProduct = {
-                id: prod.id,
-                name: prod.name,
-                images: prod.images.map((img) => img.url),
-                description: prod.description ?? "",
-                price: prod.pricePerKg,
-                teffType: prod.teffType.name,
-                createdAt: prod.createdAt,
-                updatedAt: prod.updatedAt,
-                isstock: prod.inStock,
-                discount: prod.discount,
-                ...feedbackData,
+            const feedbackOptions = {
+                page: 1,
+                limit: 5,
+                topOnly: role !== 'ADMIN',
             };
-            const mapped = prod.quality?.name
-                ? { ...baseProduct, quality: prod.quality.name }
-                : baseProduct;
-            await redisClient.set(cacheKey, JSON.stringify(mapped));
-            return mapped;
+            if (role !== 'ADMIN') {
+                feedbackOptions.includeUserId = userId;
+            }
+            const feedback = await this.feedbackService.getFeedbackByProduct(id, feedbackOptions);
+            const response = {
+                id: product.id,
+                name: product.name,
+                description: product.description ?? "",
+                price: Number(product.pricePerKg),
+                rating: product.rating,
+                totalRating: product.totalRating,
+                images: product.images.map(img => img.url),
+                teffType: product.teffType.name,
+                quality: product.quality?.name ?? null,
+                feedback
+            };
+            await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
+            return response;
         }
         catch (error) {
             console.error(`❌ Error fetching product with id ${id}:`, error);
@@ -320,8 +333,32 @@ export class ProductServiceImpl {
     //     throw new Error('Failed to search products');
     //   }
     // }
-    async createProduct(data) {
+    async createProduct(data, files = []) {
+        const uploadToCloudinary = (file) => new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({
+                folder: 'products',
+                resource_type: 'image',
+            }, (error, result) => {
+                if (error || !result) {
+                    reject(error ?? new Error('Cloudinary upload failed'));
+                    return;
+                }
+                resolve(result);
+            });
+            stream.end(file.buffer);
+        });
         try {
+            const uploadedUrls = [];
+            if (files.length > 0) {
+                const uploadResults = await Promise.all(files.map((file) => uploadToCloudinary(file)));
+                uploadedUrls.push(...uploadResults.map((item) => item.secure_url));
+            }
+            // if (uploadedUrls.length === 0 && data.images && data.images.length > 0) {
+            //   uploadedUrls.push(...data.images);
+            // }
+            if (uploadedUrls.length === 0) {
+                throw new AppError('At least one image is required', 400);
+            }
             const result = await prisma.$transaction(async (tx) => {
                 // 🔹 Normalize inputs
                 const teffTypeName = data.teffType.trim();
@@ -353,10 +390,10 @@ export class ProductServiceImpl {
                 if (newquality) {
                     productData.quality = { connect: { id: newquality.id } };
                 }
-                if (data.images && data.images.length > 0) {
+                if (uploadedUrls.length > 0) {
                     productData.images = {
                         createMany: {
-                            data: data.images.map((url) => ({ url })),
+                            data: uploadedUrls.map((url) => ({ url })),
                         },
                     };
                 }

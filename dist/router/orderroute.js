@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { OrderServiceImpl } from '../service/orderservice.js';
-import { authMiddleware } from '../middleware/authmiddleware.js';
+import { authMiddleware, requireAdmin } from '../middleware/authmiddleware.js';
 import { locationMiddleware, orderMiddleware } from '../middleware/ordermiddleware.js';
 import { validate } from '../middleware/validate.js';
 import { createMultiorderSchema } from '../validation/order_validation.js';
-import { OrderStatus } from '@prisma/client';
+import { DeliveryStatus, OrderStatus, PaymentStatus } from '@prisma/client';
 const router = Router();
 const orders = new OrderServiceImpl();
 // 🔐 All order routes require auth
@@ -112,6 +112,92 @@ router.patch('/:id/cancel', orderMiddleware, async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: 'Order cancelled successfully'
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+//
+// ----------------------------------------------------
+// ADMIN: GET ALL ORDERS (OPTIONAL STATUS FILTERS)
+// ----------------------------------------------------
+router.get('/admin/orders', requireAdmin, async (req, res, next) => {
+    try {
+        const statusParam = req.query.status;
+        const paymentStatusParam = req.query.paymentStatus;
+        const deliveryStatusParam = req.query.deliveryStatus;
+        let statusEnum;
+        let paymentStatusEnum;
+        let deliveryStatusEnum;
+        if (statusParam) {
+            if (!(statusParam.toUpperCase() in OrderStatus)) {
+                return res.status(400).json({ error: 'Invalid order status' });
+            }
+            statusEnum = OrderStatus[statusParam.toUpperCase()];
+        }
+        if (paymentStatusParam) {
+            if (!(paymentStatusParam.toUpperCase() in PaymentStatus)) {
+                return res.status(400).json({ error: 'Invalid payment status' });
+            }
+            paymentStatusEnum = PaymentStatus[paymentStatusParam.toUpperCase()];
+        }
+        if (deliveryStatusParam) {
+            if (!(deliveryStatusParam.toUpperCase() in DeliveryStatus)) {
+                return res.status(400).json({ error: 'Invalid delivery status' });
+            }
+            deliveryStatusEnum = DeliveryStatus[deliveryStatusParam.toUpperCase()];
+        }
+        const ordersList = await orders.getAllOrders(statusEnum, paymentStatusEnum, deliveryStatusEnum);
+        return res.status(200).json({
+            success: true,
+            message: 'Orders fetched successfully',
+            data: ordersList
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+//
+// ----------------------------------------------------
+// ADMIN: UPDATE ORDER STATUS
+// ----------------------------------------------------
+router.patch('/admin/orders/:id/status', requireAdmin, async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const paymentStatusParam = req.body.paymentStatus;
+        const deliveryStatusParam = req.body.deliveryStatus;
+        const deliveryDateParam = req.body.deliveryDate;
+        let paymentStatusEnum;
+        let deliveryStatusEnum;
+        let deliveryDate;
+        if (!id) {
+            return res.status(400).json({ error: 'Order ID is required' });
+        }
+        if (paymentStatusParam) {
+            if (!(paymentStatusParam.toUpperCase() in PaymentStatus)) {
+                return res.status(400).json({ error: 'Invalid payment status' });
+            }
+            paymentStatusEnum = PaymentStatus[paymentStatusParam.toUpperCase()];
+        }
+        if (deliveryStatusParam) {
+            if (!(deliveryStatusParam.toUpperCase() in DeliveryStatus)) {
+                return res.status(400).json({ error: 'Invalid delivery status' });
+            }
+            deliveryStatusEnum = DeliveryStatus[deliveryStatusParam.toUpperCase()];
+        }
+        if (deliveryDateParam !== undefined) {
+            const parsedDate = new Date(deliveryDateParam);
+            if (Number.isNaN(parsedDate.getTime())) {
+                return res.status(400).json({ error: 'Invalid delivery date' });
+            }
+            deliveryDate = parsedDate;
+        }
+        await orders.updateOrderStatus(id, paymentStatusEnum, deliveryStatusEnum, deliveryDate);
+        return res.status(200).json({
+            success: true,
+            message: 'Order status updated successfully'
         });
     }
     catch (error) {

@@ -8,8 +8,10 @@ export interface ProductService {
         items: Product[];
         total: number;
     }>;
-    getProductById(id: string, userId: string): Promise<Product | null>;
-    createProduct(data: CreateProductInput): any;
+    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<Product & {
+        feedback: any;
+    }>;
+    createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
     updatestock(id: string): any;
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];
@@ -37,13 +39,13 @@ export declare class ProductServiceImpl implements ProductService {
         items: Product[];
         total: number;
     }>;
-    getProductById(id: string, userid: string): Promise<Product>;
+    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
     updatestock(id: string): Promise<any>;
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];
         total: number;
     }>;
-    createProduct(data: CreateProductInput): Promise<{
+    createProduct(data: CreateProductInput, files?: Express.Multer.File[]): Promise<{
         teffType: {
             id: string;
             name: string;
@@ -68,6 +70,8 @@ export declare class ProductServiceImpl implements ProductService {
         qualityId: string | null;
         discount: number | null;
         inStock: boolean;
+        rating: number | null;
+        totalRating: number;
         orderCount: number;
     }>;
 }
