@@ -136,6 +136,21 @@ router.put("/stockupdate/:id",requireAdmin, async (req: Request, res: Response, 
   }
 });
 
+router.delete("/products/:id", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const productId = req.params.id;
+    if (!productId) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+      const deleted = await products.deleteProduct(productId);
+    if (!deleted) {
+      return res.status(404).json({ error: "Product not found or already deleted" });
+    }
+    return res.status(200).json({ message: "Product deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // post /products - Create a new product (example, not implemented in service)
 router.post(

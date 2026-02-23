@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import { AppError, DatabaseError, NotFoundError } from '../utils/apperror.js';
+import { AppError, DatabaseError, NotFoundError, ValidationError } from '../utils/apperror.js';
 import { FeedbackServiceImpl } from './feedbackservice.js';
 import { cloudinary } from '../config.js';
 import { prisma } from '../prisma.js';
@@ -11,6 +11,80 @@ export class ProductServiceImpl {
     constructor(feedbackService = new FeedbackServiceImpl()) {
         this.feedbackService = feedbackService;
     }
+    // delete a product by id
+    async deleteProduct(id) {
+        try {
+            const existing = await prisma.teffProduct.findUnique({
+                where: { id },
+                select: { id: true },
+            });
+            if (!existing) {
+                return false;
+            }
+            await prisma.$transaction([
+                prisma.feedbackAnalytics.deleteMany({
+                    where: { feedback: { productid: id } },
+                }),
+                prisma.feedback.deleteMany({
+                    where: { productid: id },
+                }),
+                prisma.image.deleteMany({
+                    where: { productId: id },
+                }),
+                prisma.cart.deleteMany({
+                    where: { productId: id },
+                }),
+                prisma.teffProduct.delete({
+                    where: { id },
+                }),
+            ]);
+            return true;
+        }
+        catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+                return false;
+            }
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+                throw new ValidationError('Cannot delete product because it is referenced by related records.');
+            }
+            console.error('❌ Error deleting product:', error);
+            throw new DatabaseError();
+        }
+    }
+    // update a product by id
+    // async updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null> {
+    //   try {
+    //     const updated = await prisma.teffProduct.update({
+    //       where: { id: String(id) },
+    //       data: {
+    //         name: data.name,
+    //         description: data.description,
+    //         pricePerKg: data.price,
+    //         // teffType and quality updates would require additional logic to handle relations
+    //       },
+    //       include: {
+    //         teffType: true,
+    //         quality: true,
+    //         images: true,
+    //       },
+    //     });
+    //     if (!updated) return null;
+    //     return {
+    //       id: updated.id,
+    //       name: updated.name,
+    //       images: updated.images.map(img => img.url),
+    //       description: updated.description ?? '',
+    //       price: updated.pricePerKg,
+    //       teffType: updated.teffType.name,
+    //       quality: updated.quality?.name,
+    //       createdAt: updated.createdAt,
+    //       updatedAt: updated.updatedAt,
+    //     };
+    //   } catch (error) {
+    //     console.error('❌ Error updating product:', error);
+    //     throw new DatabaseError();
+    //   }
+    // }
     // get popular product
     async getpopularProducts(limit = 4) {
         try {
@@ -54,10 +128,10 @@ export class ProductServiceImpl {
     }
     async getAllProducts(page = 1, limit = 20) {
         try {
-            const cacheKey = `all_products:${page}:${limit}`;
-            const cached = await redisClient.get(cacheKey);
-            if (cached)
-                return JSON.parse(cached);
+            /*      const cacheKey = `all_products:${page}:${limit}`;
+           
+                 const cached = await redisClient.get(cacheKey);
+                 if (cached) return JSON.parse(cached); */
             // Fetch products with relations
             const [products, total] = await Promise.all([
                 prisma.teffProduct.findMany({
@@ -92,7 +166,7 @@ export class ProductServiceImpl {
                     : baseProduct;
             });
             const payload = { items: mappedProducts, total };
-            await redisClient.set(cacheKey, JSON.stringify(payload));
+            // await redisClient.set(cacheKey, JSON.stringify(payload));
             return payload;
         }
         catch (error) {
@@ -106,10 +180,9 @@ export class ProductServiceImpl {
     //   if (cached) return JSON.parse(cached);
     //   let feedbackData = null;
     async getProductById(id, userId, role) {
-        const cacheKey = `product:${id}:${role}`;
-        const cached = await redisClient.get(cacheKey);
-        if (cached)
-            return JSON.parse(cached);
+        // const cacheKey = `product:${id}:${role}`;
+        // const cached = await redisClient.get(cacheKey);
+        // if (cached) return JSON.parse(cached); 
         try {
             const product = await prisma.teffProduct.findUnique({
                 where: { id },
@@ -142,7 +215,7 @@ export class ProductServiceImpl {
                 quality: product.quality?.name ?? null,
                 ...feedback
             };
-            await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
+            // await redisClient.set(cacheKey, JSON.stringify(response), { EX: 60 });
             return response;
         }
         catch (error) {

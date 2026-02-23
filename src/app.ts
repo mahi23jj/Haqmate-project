@@ -19,6 +19,7 @@ import { PaymentRouter } from './router/paymentroute.js';
 import { ScreenshotRouter } from './router/screenshot_payment_route.js';
 import { refundrouter } from './router/refund.js';
 import { SettingsRouter } from './router/settingsroute.js';
+import { dashboardRouter } from './router/dashboard.js';
 
 export const app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/pay', PaymentRouter);
 app.use('/api/manualpayment', ScreenshotRouter);
 app.use('/api/refund' , refundrouter);
 app.use('/api', SettingsRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 app.post("/apply/h5token", function (req: Request, res: Response) {
   telebirr.authToken(req, res);

@@ -8,15 +8,14 @@ export interface ProductService {
         items: Product[];
         total: number;
     }>;
-    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<Product & {
-        feedback: any;
-    }>;
+    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
     createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
     updatestock(id: string): any;
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];
         total: number;
     }>;
+    deleteProduct(id: string): Promise<boolean>;
 }
 export interface Product {
     id: string;
@@ -32,6 +31,7 @@ export interface Product {
 export declare class ProductServiceImpl implements ProductService {
     private feedbackService;
     constructor(feedbackService?: FeedbackServiceImpl);
+    deleteProduct(id: string): Promise<boolean>;
     getpopularProducts(limit?: number): Promise<{
         items: Product[];
     }>;
@@ -39,7 +39,30 @@ export declare class ProductServiceImpl implements ProductService {
         items: Product[];
         total: number;
     }>;
-    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
+    getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<{
+        feedback: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string;
+            message: string | null;
+            rating: number;
+            productid: string;
+            submittedAt: Date;
+        }[];
+        averageRating: number | null;
+        totalRatings: number;
+        total: number;
+        id: string;
+        name: string;
+        description: string;
+        price: number;
+        rating: number | null;
+        totalRating: number;
+        images: string[];
+        teffType: string;
+        quality: string | null;
+    }>;
     updatestock(id: string): Promise<any>;
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];

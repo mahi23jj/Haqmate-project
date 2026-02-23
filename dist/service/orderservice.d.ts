@@ -82,6 +82,7 @@ export declare class OrderServiceImpl {
         orderrecived: string;
         paymentMethod: string;
         deliveryFee: number;
+        paymentProofUrl: string | null;
         deliverystatus: import("@prisma/client").$Enums.DeliveryStatus;
         deliveryDate: Date | null;
         status: import("@prisma/client").$Enums.OrderStatus;
