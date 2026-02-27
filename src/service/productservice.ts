@@ -281,6 +281,7 @@ export class ProductServiceImpl implements ProductService {
         price: Number(product.pricePerKg),
         rating: product.rating,
         totalRating: product.totalRating,
+        isStock: product.inStock,
         images: product.images.map(img => img.url),
         teffType: product.teffType.name,
         quality: product.quality?.name ?? null,

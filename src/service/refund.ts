@@ -139,6 +139,15 @@ export class RefundService {
             data: { status: newStatus, adminNote: reason || null }
         });
 
+        await prisma.order.update({
+            where: { id: updatedRefund.orderId },
+            data: {
+                Refundstatus: newStatus,
+                cancelReason: reason || null,
+            }
+
+        });
+
         return {
             message: 'Refund status updated successfully',
             refund: updatedRefund
