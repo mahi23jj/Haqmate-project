@@ -552,6 +552,7 @@ usersRouter.get("/admin/users", requireAdmin, async (req: Request, res: Response
       const totalSpent = await prisma.order.aggregate({
         where: {
           userId: user.id,
+          status: {in : ["COMPLETED", "TO_BE_DELIVERED" ]},
 
         },
         _sum: {
