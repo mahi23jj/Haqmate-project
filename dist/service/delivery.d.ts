@@ -22,6 +22,7 @@ export declare class DeliveryServiceImpl implements DeliveryService {
         total: number;
     }>;
     createdeliveryperkg(fee: number): Promise<any>;
+    getdeliveryperkg(): Promise<any>;
     getlocationbyid(id: string): Promise<any>;
     deletelocation(id: string): Promise<any>;
     updatelocation(id: string, location: string, km: number): Promise<any>;

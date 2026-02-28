@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError, DatabaseError, NotFoundError, ValidationError } from '../utils/apperror.js';
 import type { promises } from 'dns';
-import type { CreateProductInput } from '../validation/productvalidation.js'
+import type { CreateProductInput, UpdateProductInput } from '../validation/productvalidation.js'
 import { FeedbackServiceImpl } from './feedbackservice.js';
 import type { Express } from 'express';
 import type { UploadApiResponse } from 'cloudinary';
@@ -20,6 +20,7 @@ export interface ProductService {
   getAllProducts(page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
   createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
+  updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): any;
   updatestock(id: string): any;
   searchProduct(query: string, page?: number, limit?: number): Promise<{ items: Product[]; total: number }>;
   //updateProduct(id: number, data: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | null>;
@@ -47,6 +48,32 @@ export class ProductServiceImpl implements ProductService {
   constructor(
     private feedbackService: FeedbackServiceImpl = new FeedbackServiceImpl()
   ) { }
+
+  private uploadToCloudinary(file: Express.Multer.File): Promise<UploadApiResponse> {
+    return new Promise<UploadApiResponse>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'products',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error || !result) {
+            reject(error ?? new Error('Cloudinary upload failed'));
+            return;
+          }
+          resolve(result);
+        }
+      );
+
+      stream.end(file.buffer);
+    });
+  }
+
+  private async uploadFilesToCloudinary(files: Express.Multer.File[] = []): Promise<string[]> {
+    if (files.length === 0) return [];
+    const uploaded = await Promise.all(files.map((file) => this.uploadToCloudinary(file)));
+    return uploaded.map((item) => item.secure_url);
+  }
 
 
   // delete a product by id
@@ -420,6 +447,137 @@ export class ProductServiceImpl implements ProductService {
     }
   }
 
+  async updateProduct(
+    id: string,
+    data: UpdateProductInput,
+    files: Express.Multer.File[] = []
+  ) {
+    try {
+      const existing = await prisma.teffProduct.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Product not found');
+      }
+
+      const uploadedUrls = await this.uploadFilesToCloudinary(files);
+
+      const result = await prisma.$transaction(async (tx) => {
+        const updateData: Prisma.TeffProductUpdateInput = {};
+
+        if (typeof data.name === 'string') {
+          updateData.name = data.name.trim();
+        }
+
+        if (typeof data.description === 'string') {
+          updateData.description = data.description;
+        }
+
+        if (typeof data.price === 'number') {
+          updateData.pricePerKg = data.price;
+        }
+
+        if (typeof data.teffType === 'string') {
+          const teffTypeName = data.teffType.trim();
+          const teffType = await tx.teffType.upsert({
+            where: { name: teffTypeName },
+            update: {},
+            create: { name: teffTypeName },
+          });
+
+          updateData.teffType = {
+            connect: { id: teffType.id },
+          };
+        }
+
+        if (data.quality !== undefined) {
+          const qualityName = data.quality.trim();
+          if (!qualityName) {
+            updateData.quality = { disconnect: true };
+          } else {
+            const quality = await tx.teffQuality.upsert({
+              where: { name: qualityName },
+              update: {},
+              create: { name: qualityName },
+            });
+            updateData.quality = {
+              connect: { id: quality.id },
+            };
+          }
+        }
+
+        await tx.teffProduct.update({
+          where: { id },
+          data: updateData,
+        });
+
+        if (uploadedUrls.length > 0) {
+          await tx.image.createMany({
+            data: uploadedUrls.map((url) => ({
+              url,
+              productId: id,
+            })),
+          });
+        }
+
+        const updated = await tx.teffProduct.findUnique({
+          where: { id },
+          include: {
+            teffType: true,
+            quality: true,
+            images: true,
+          },
+        });
+
+        if (!updated) {
+          throw new NotFoundError('Product not found');
+        }
+
+        return updated;
+      }, { maxWait: 5000, timeout: 15000 });
+
+      try {
+        const allProductsKeys = await redisClient.keys('all_products:*');
+        if (allProductsKeys.length > 0) {
+          await redisClient.del(allProductsKeys);
+        }
+
+        const searchKeys = await redisClient.keys('search_products:*');
+        if (searchKeys.length > 0) {
+          await redisClient.del(searchKeys);
+        }
+
+        await redisClient.del(`product:${id}`);
+      } catch (redisError) {
+        console.warn('⚠️ Redis cache clear failed:', redisError);
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Error updating product:', error);
+
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      if (error.code === 'P2002') {
+        throw new AppError('Duplicate field value', 409);
+      }
+
+      if (error.code === 'P2003') {
+        throw new AppError('Invalid relation reference', 400);
+      }
+
+      if (error.code === 'P2025') {
+        throw new NotFoundError('Product not found');
+      }
+
+      throw new DatabaseError();
+    }
+  }
+
 
 
   //   async searchProduct(query: string, page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
@@ -521,34 +679,8 @@ export class ProductServiceImpl implements ProductService {
 
 
   async createProduct(data: CreateProductInput, files: Express.Multer.File[] = []) {
-    type MulterFile = Express.Multer.File;
-
-    const uploadToCloudinary = (file: MulterFile) =>
-      new Promise<UploadApiResponse>((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'products',
-            resource_type: 'image',
-          },
-          (error, result) => {
-            if (error || !result) {
-              reject(error ?? new Error('Cloudinary upload failed'));
-              return;
-            }
-            resolve(result);
-          }
-        );
-
-        stream.end(file.buffer);
-      });
-
     try {
-      const uploadedUrls: string[] = [];
-
-      if (files.length > 0) {
-        const uploadResults = await Promise.all(files.map((file) => uploadToCloudinary(file)));
-        uploadedUrls.push(...uploadResults.map((item) => item.secure_url));
-      }
+      const uploadedUrls = await this.uploadFilesToCloudinary(files);
 
       // if (uploadedUrls.length === 0 && data.images && data.images.length > 0) {
       //   uploadedUrls.push(...data.images);

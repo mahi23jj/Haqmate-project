@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ProductServiceImpl } from "../service/productservice.js";
 import { validate } from "../middleware/validate.js";
-import { createProductSchema } from '../validation/productvalidation.js';
+import { createProductSchema, updateProductSchema } from '../validation/productvalidation.js';
 import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
 import { uploadProductImages } from "../middleware/upload.js";
 const router = Router();
@@ -103,6 +103,39 @@ router.put("/stockupdate/:id", requireAdmin, async (req, res, next) => {
                 data: isstock,
             });
         }
+    }
+    catch (error) {
+        next(error);
+    }
+});
+router.put("/products/:id", requireAdmin, uploadProductImages.array('images', 6), validate(updateProductSchema), async (req, res, next) => {
+    try {
+        const productId = req.params.id;
+        if (!productId) {
+            return res.status(404).json({ error: "Product not found" });
+        }
+        const files = req.files ?? [];
+        const { name, description, price, teffType, quality, } = req.body;
+        const hasBodyUpdate = [name, description, price, teffType, quality]
+            .some((value) => value !== undefined);
+        if (!hasBodyUpdate && files.length === 0) {
+            return res.status(400).json({
+                status: 'fail',
+                message: 'Provide at least one field or upload at least one image to update',
+            });
+        }
+        const updatedProduct = await products.updateProduct(productId, {
+            name,
+            description,
+            price,
+            teffType,
+            quality,
+        }, files);
+        return res.status(200).json({
+            status: 'success',
+            message: 'Product updated successfully',
+            data: updatedProduct,
+        });
     }
     catch (error) {
         next(error);

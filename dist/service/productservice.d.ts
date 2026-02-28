@@ -1,4 +1,4 @@
-import type { CreateProductInput } from '../validation/productvalidation.js';
+import type { CreateProductInput, UpdateProductInput } from '../validation/productvalidation.js';
 import { FeedbackServiceImpl } from './feedbackservice.js';
 export interface ProductService {
     getpopularProducts(limit?: number): Promise<{
@@ -10,6 +10,7 @@ export interface ProductService {
     }>;
     getProductById(id: string, userId: string, role: 'ADMIN' | 'USER'): Promise<any>;
     createProduct(data: CreateProductInput, files?: Express.Multer.File[]): any;
+    updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): any;
     updatestock(id: string): any;
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];
@@ -31,6 +32,8 @@ export interface Product {
 export declare class ProductServiceImpl implements ProductService {
     private feedbackService;
     constructor(feedbackService?: FeedbackServiceImpl);
+    private uploadToCloudinary;
+    private uploadFilesToCloudinary;
     deleteProduct(id: string): Promise<boolean>;
     getpopularProducts(limit?: number): Promise<{
         items: Product[];
@@ -59,6 +62,7 @@ export declare class ProductServiceImpl implements ProductService {
         price: number;
         rating: number | null;
         totalRating: number;
+        isStock: boolean;
         images: string[];
         teffType: string;
         quality: string | null;
@@ -67,6 +71,35 @@ export declare class ProductServiceImpl implements ProductService {
     searchProduct(query: string, page?: number, limit?: number): Promise<{
         items: Product[];
         total: number;
+    }>;
+    updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): Promise<{
+        teffType: {
+            id: string;
+            name: string;
+        };
+        quality: {
+            id: string;
+            name: string;
+        } | null;
+        images: {
+            url: string;
+            id: string;
+            productId: string;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        description: string | null;
+        pricePerKg: number;
+        teffTypeId: string;
+        qualityId: string | null;
+        discount: number | null;
+        inStock: boolean;
+        rating: number | null;
+        totalRating: number;
+        orderCount: number;
     }>;
     createProduct(data: CreateProductInput, files?: Express.Multer.File[]): Promise<{
         teffType: {

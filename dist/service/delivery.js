@@ -71,6 +71,21 @@ export class DeliveryServiceImpl {
             throw new Error("Error setting delivery fee per kg");
         }
     }
+    async getdeliveryperkg() {
+        try {
+            const setting = await prisma.deliveryconfigration.findUnique({
+                where: { id: 'deliveryFeePerKg' },
+            });
+            if (!setting) {
+                throw new Error("Delivery fee per kg not set");
+            }
+            return { feePerKg: setting.feePerKg };
+        }
+        catch (error) {
+            console.error("❌ Error fetching delivery fee per kg:", error);
+            throw new Error("Error fetching delivery fee per kg");
+        }
+    }
     // async getlocation(): Promise<any> {
     //   try {
     //     return await prisma.area.findMany();

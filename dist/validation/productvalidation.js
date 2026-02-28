@@ -8,4 +8,11 @@ export const createProductSchema = z.object({
     discount: z.coerce.number().min(0).max(100).optional(),
     instock: z.coerce.boolean().default(true).optional(),
 });
+export const updateProductSchema = z.object({
+    name: z.string().min(1, { message: "Name is required" }).max(50, { message: "Name is too long" }).optional(),
+    description: z.string().min(1, { message: "Description is required" }).max(500, { message: "Description is too long" }).optional(),
+    price: z.coerce.number().min(0.01, { message: "Price must be greater than 0" }).optional(),
+    teffType: z.string().min(1, { message: "Teff type is required" }).max(50, { message: "Teff type is too long" }).optional(),
+    quality: z.string().max(50, { message: "Quality is too long" }).optional(),
+});
 //# sourceMappingURL=productvalidation.js.map

@@ -11,6 +11,27 @@ export class ProductServiceImpl {
     constructor(feedbackService = new FeedbackServiceImpl()) {
         this.feedbackService = feedbackService;
     }
+    uploadToCloudinary(file) {
+        return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream({
+                folder: 'products',
+                resource_type: 'image',
+            }, (error, result) => {
+                if (error || !result) {
+                    reject(error ?? new Error('Cloudinary upload failed'));
+                    return;
+                }
+                resolve(result);
+            });
+            stream.end(file.buffer);
+        });
+    }
+    async uploadFilesToCloudinary(files = []) {
+        if (files.length === 0)
+            return [];
+        const uploaded = await Promise.all(files.map((file) => this.uploadToCloudinary(file)));
+        return uploaded.map((item) => item.secure_url);
+    }
     // delete a product by id
     async deleteProduct(id) {
         try {
@@ -210,6 +231,7 @@ export class ProductServiceImpl {
                 price: Number(product.pricePerKg),
                 rating: product.rating,
                 totalRating: product.totalRating,
+                isStock: product.inStock,
                 images: product.images.map(img => img.url),
                 teffType: product.teffType.name,
                 quality: product.quality?.name ?? null,
@@ -320,6 +342,112 @@ export class ProductServiceImpl {
             throw new Error('Failed to search products');
         }
     }
+    async updateProduct(id, data, files = []) {
+        try {
+            const existing = await prisma.teffProduct.findUnique({
+                where: { id },
+                select: { id: true },
+            });
+            if (!existing) {
+                throw new NotFoundError('Product not found');
+            }
+            const uploadedUrls = await this.uploadFilesToCloudinary(files);
+            const result = await prisma.$transaction(async (tx) => {
+                const updateData = {};
+                if (typeof data.name === 'string') {
+                    updateData.name = data.name.trim();
+                }
+                if (typeof data.description === 'string') {
+                    updateData.description = data.description;
+                }
+                if (typeof data.price === 'number') {
+                    updateData.pricePerKg = data.price;
+                }
+                if (typeof data.teffType === 'string') {
+                    const teffTypeName = data.teffType.trim();
+                    const teffType = await tx.teffType.upsert({
+                        where: { name: teffTypeName },
+                        update: {},
+                        create: { name: teffTypeName },
+                    });
+                    updateData.teffType = {
+                        connect: { id: teffType.id },
+                    };
+                }
+                if (data.quality !== undefined) {
+                    const qualityName = data.quality.trim();
+                    if (!qualityName) {
+                        updateData.quality = { disconnect: true };
+                    }
+                    else {
+                        const quality = await tx.teffQuality.upsert({
+                            where: { name: qualityName },
+                            update: {},
+                            create: { name: qualityName },
+                        });
+                        updateData.quality = {
+                            connect: { id: quality.id },
+                        };
+                    }
+                }
+                await tx.teffProduct.update({
+                    where: { id },
+                    data: updateData,
+                });
+                if (uploadedUrls.length > 0) {
+                    await tx.image.createMany({
+                        data: uploadedUrls.map((url) => ({
+                            url,
+                            productId: id,
+                        })),
+                    });
+                }
+                const updated = await tx.teffProduct.findUnique({
+                    where: { id },
+                    include: {
+                        teffType: true,
+                        quality: true,
+                        images: true,
+                    },
+                });
+                if (!updated) {
+                    throw new NotFoundError('Product not found');
+                }
+                return updated;
+            }, { maxWait: 5000, timeout: 15000 });
+            try {
+                const allProductsKeys = await redisClient.keys('all_products:*');
+                if (allProductsKeys.length > 0) {
+                    await redisClient.del(allProductsKeys);
+                }
+                const searchKeys = await redisClient.keys('search_products:*');
+                if (searchKeys.length > 0) {
+                    await redisClient.del(searchKeys);
+                }
+                await redisClient.del(`product:${id}`);
+            }
+            catch (redisError) {
+                console.warn('⚠️ Redis cache clear failed:', redisError);
+            }
+            return result;
+        }
+        catch (error) {
+            console.error('❌ Error updating product:', error);
+            if (error instanceof NotFoundError) {
+                throw error;
+            }
+            if (error.code === 'P2002') {
+                throw new AppError('Duplicate field value', 409);
+            }
+            if (error.code === 'P2003') {
+                throw new AppError('Invalid relation reference', 400);
+            }
+            if (error.code === 'P2025') {
+                throw new NotFoundError('Product not found');
+            }
+            throw new DatabaseError();
+        }
+    }
     //   async searchProduct(query: string, page = 1, limit = 20): Promise<{ items: Product[]; total: number }> {
     //   try {
     //     const trimmedQuery = (query ?? '').trim().toLowerCase();
@@ -407,25 +535,8 @@ export class ProductServiceImpl {
     //   }
     // }
     async createProduct(data, files = []) {
-        const uploadToCloudinary = (file) => new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream({
-                folder: 'products',
-                resource_type: 'image',
-            }, (error, result) => {
-                if (error || !result) {
-                    reject(error ?? new Error('Cloudinary upload failed'));
-                    return;
-                }
-                resolve(result);
-            });
-            stream.end(file.buffer);
-        });
         try {
-            const uploadedUrls = [];
-            if (files.length > 0) {
-                const uploadResults = await Promise.all(files.map((file) => uploadToCloudinary(file)));
-                uploadedUrls.push(...uploadResults.map((item) => item.secure_url));
-            }
+            const uploadedUrls = await this.uploadFilesToCloudinary(files);
             // if (uploadedUrls.length === 0 && data.images && data.images.length > 0) {
             //   uploadedUrls.push(...data.images);
             // }

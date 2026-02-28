@@ -432,5 +432,53 @@ locationMiddleware, authMiddleware, async (req, res, next) => {
         });
     }
 });
+// get user list for admin
+usersRouter.get("/admin/users", requireAdmin, async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            where: {
+                role: "USER",
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phoneNumber: true,
+                area: {
+                    select: {
+                        name: true,
+                    },
+                },
+                createdAt: true,
+            }
+        });
+        await Promise.all(users.map(async (user) => {
+            const totalSpent = await prisma.order.aggregate({
+                where: {
+                    userId: user.id,
+                    status: { in: ["COMPLETED", "TO_BE_DELIVERED"] },
+                },
+                _sum: {
+                    totalAmount: true,
+                },
+                _count: {
+                    id: true,
+                },
+            });
+            user.totalSpent = totalSpent._sum.totalAmount || 0;
+            user.orderCount = totalSpent._count.id || 0;
+        }));
+        return res.status(200).json({
+            status: "success",
+            data: users,
+        });
+    }
+    catch (error) {
+        return res.status(500).json({
+            status: "error",
+            error: error.message || "Something went wrong",
+        });
+    }
+});
 export { usersRouter as UserRouter };
 //# sourceMappingURL=user_router.js.map
