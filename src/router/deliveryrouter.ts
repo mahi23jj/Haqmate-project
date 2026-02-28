@@ -65,6 +65,15 @@ router.post("/deliverycharge",requireAdmin ,async (req: Request, res: Response) 
   }
 });
 
+router.get("/deliverycharge", async (req: Request, res: Response) => {
+  try {
+    const charge = await Delivery.getdeliveryperkg(); // Assuming this method returns the current delivery charge per kg
+    res.status(200).json({ status: "success", data: charge });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 
 // 📌 Get one location
 // router.get("/:id", async (req: Request, res: Response) => {
