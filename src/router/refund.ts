@@ -15,7 +15,7 @@ const refundService = new RefundService();
 router.post('/', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         let { orderId, reason, accountName, accountNumber } = req.body;
-        const userId = req.user as string | undefined; // Assuming auth middleware sets req.user to the authenticated user's ID
+        const userId = req.user?.id as string | undefined; // Assuming auth middleware sets req.user?.id to the authenticated user's ID
 
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });

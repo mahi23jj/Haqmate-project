@@ -10,7 +10,6 @@ import { cloudinary } from '../config.js';
 
 import { prisma } from '../prisma.js';
 import { redisClient } from '../redis_test.js';
-import type { role } from 'better-auth/plugins';
 
 export interface ProductService {
 

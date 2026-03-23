@@ -83,7 +83,7 @@ router.get("/products/:id",
     try {
       const productId = req.params.id;
 
-      const userId = req.user;
+      const userId = req.user?.id;
 
       if (typeof userId !== "string") {
         return res.status(401).json({ error: "Unauthorized" });

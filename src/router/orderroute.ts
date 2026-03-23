@@ -24,7 +24,7 @@ router.use(authMiddleware);
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
 
-    const userid = req.user;
+    const userid = req.user?.id;
     const statusParam = req.query.status as string | undefined;
     const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
@@ -91,7 +91,7 @@ router.post(
   // validate(createMultiorderSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user;
+      const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }

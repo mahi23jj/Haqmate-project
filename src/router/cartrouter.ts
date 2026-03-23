@@ -16,7 +16,7 @@ router.post("/add",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
 
-      const userId = req.user;
+      const userId = req.user?.id;
 
       const product = req.product;
 
@@ -43,7 +43,7 @@ router.put("/quantity_update",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
 
-      const userId = req.user;
+      const userId = req.user?.id;
 
       const product = req.product;
 
@@ -69,7 +69,7 @@ router.put("/update/:id",
     try {
 
       const cartid = req.params.id ?? '';
-      const userId = req.user;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -108,7 +108,7 @@ router.delete("/:cartid/remove", async (req: Request, res: Response, next: NextF
 // Clear the cart
 router.delete("/clear", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -124,7 +124,7 @@ router.delete("/clear", async (req: Request, res: Response, next: NextFunction) 
 // GET /cart - Retrieve the current user's cart
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
