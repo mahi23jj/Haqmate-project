@@ -2,7 +2,7 @@ import "express";
 
 declare global {
   namespace Express {
-      namespace Multer {
+    namespace Multer {
       interface File {
         fieldname: string;
         originalname: string;
@@ -16,17 +16,23 @@ declare global {
       }
     }
     interface Request {
-      user?: string;      // your user ID or a user object
+      user?: {
+        id: string;
+        name: string | null;
+        phoneNumber: string | null;
+        role: string;
+        areaId?: string | null;
+      };     // your user ID or a user object
       session?: any;      // session info if you attach it  
       context?: {
-      models: {
-        Order: any; // replace when you have actual types
-        product : any;
+        models: {
+          Order: any; // replace when you have actual types
+          product: any;
+        };
       };
-    };
-    order?: any;
-    product?: any;
-    location?: any;
+      order?: any;
+      product?: any;
+      location?: any;
     }
   }
 }

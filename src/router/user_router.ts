@@ -1,132 +1,168 @@
-import { fromNodeHeaders } from "better-auth/node";
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { auth } from "../lib/auth.js";
-import { validate } from "../middleware/validate.js";
-import { adminCreateSchema, forgetpasswordSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
-import { locationMiddleware } from "../middleware/ordermiddleware.js";
 import { authMiddleware, requireAdmin } from "../middleware/authmiddleware.js";
+import { validate } from "../middleware/validate.js";
+import { adminCreateSchema, loginSchema, registerSchema, updatestatus } from "../validation/auth_validation.js";
+import { locationMiddleware } from "../middleware/ordermiddleware.js";
 import { prisma } from '../prisma.js';
 import { CartServiceImpl } from "../service/cartservice.js";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
+const signToken = (user: { id: string; role: string; phoneNumber: string | null }) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return jwt.sign(
+    { sub: user.id, role: user.role, phoneNumber: user.phoneNumber },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+};
 
 const usersRouter = Router();
 
-usersRouter.get("/me", async (req: Request, res: Response) => {
+usersRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
+  return res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+});
+
+usersRouter.post("/login", validate(loginSchema), async (req: Request, res: Response) => {
+  const { phoneNumber, password } = req.body;
+
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers), // <-- reads Authorization header
+    const account = await prisma.account.findFirst({
+      where: { providerId: "credentials", accountId: phoneNumber },
+      include: {
+        user: {
+          select: { id: true, name: true, phoneNumber: true, role: true, areaId: true },
+        },
+      },
     });
 
-    if (!session) {
-      return res.status(401).json({ error: "No active session found" });
+    if (!account || !account.password) {
+      return res.status(400).json({ success: false, error: "Invalid phone number or password" });
     }
 
-    res.json(session);
-  } catch (err: any) {
-    console.error("Error fetching session:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    const isValidPassword = await bcrypt.compare(password, account.password);
+    if (!isValidPassword) {
+      return res.status(400).json({ success: false, error: "Invalid phone number or password" });
+    }
+
+    const token = signToken(account.user);
+
+    const cartService = new CartServiceImpl();
+    await cartService.preloadCartOnLogin(account.user.id);
+
+    return res.status(200).json({
+      success: true,
+      token,
+      tokenType: "Bearer",
+      expiresIn: "7d",
+      user: account.user,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message || "Internal server error" });
   }
 });
 
-//Content-Type: application/json
-usersRouter.post("/login",
-  validate(loginSchema),
-  async (req: Request, res: Response) => {
-    const { email, password, rememberMe } = req.body;
+usersRouter.post("/admin/login", validate(loginSchema), async (req: Request, res: Response) => {
+  const { phoneNumber, password } = req.body;
 
-    try {
-      const session = await auth.api.signInEmail({
-        body: { email: email, password: password, rememberMe: rememberMe },
-      });
+  try {
+    const account = await prisma.account.findFirst({
+      where: { providerId: "credentials", accountId: phoneNumber },
+      include: {
+        user: {
+          select: { id: true, name: true, phoneNumber: true, role: true, areaId: true },
+        },
+      },
+    });
 
-      const value = new CartServiceImpl();
-      await value.preloadCartOnLogin(session.user.id);
-
-      res.status(200).json(session);
-
-    } catch (error: any) {
-      console.error("Login error:", error);
-
-      let statusCode = 400;
-      let errorMessage = "Invalid email or password";
-
-      // Extract better error message from Better Auth
-      if (error.message) {
-        const message = error.message.toLowerCase();
-
-        if (message.includes("user not found") || message.includes("invalid email")) {
-          errorMessage = "User not found";
-        } else if (message.includes("invalid password") || message.includes("incorrect password")) {
-          errorMessage = "Incorrect password";
-        } else if (message.includes("email not verified")) {
-          errorMessage = "Email not verified. Please check your inbox.";
-          statusCode = 403;
-        } else if (message.includes("too many requests")) {
-          errorMessage = "Too many attempts. Please try again later.";
-          statusCode = 429;
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
-      res.status(statusCode).json({
-        success: false,
-        error: errorMessage
-      });
+    if (!account || !account.password) {
+      return res.status(400).json({ success: false, error: "Invalid phone number or password" });
     }
+
+    const isValidPassword = await bcrypt.compare(password, account.password);
+    if (!isValidPassword) {
+      return res.status(400).json({ success: false, error: "Invalid phone number or password" });
+    }
+
+    if (account.user.role !== "ADMIN") {
+      return res.status(403).json({ success: false, error: "Forbidden - Admins only" });
+    }
+
+    const token = signToken(account.user);
+
+    return res.status(200).json({
+      success: true,
+      token,
+      tokenType: "Bearer",
+      expiresIn: "7d",
+      user: account.user,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message || "Internal server error" });
   }
-);
+});
 
-
-usersRouter.post("/admin/login",
-
-  validate(loginSchema),
+usersRouter.post(
+  "/admin/create",
+  authMiddleware,
+  requireAdmin,
+  validate(adminCreateSchema),
   async (req: Request, res: Response) => {
-    const { email, password, rememberMe } = req.body;
+    const { username, password, phoneNumber, email } = req.body;
 
     try {
-      const session = await auth.api.signInEmail({
-        body: { email: email, password: password, rememberMe: rememberMe },
-      });
-
-
-      if (session.user.role !== "ADMIN") {
-        return res.status(403).json({ error: "Forbidden - Admins only" });
+      if (!phoneNumber?.startsWith("+251")) {
+        return res.status(400).json({ success: false, error: "Phone number must start with +251" });
       }
 
+      const existingUser = await prisma.user.findFirst({
+        where: { OR: [{ phoneNumber }, ...(email ? [{ email }] : [])] },
+      });
 
-      res.status(200).json(session);
+      if (existingUser) {
+        return res.status(400).json({ success: false, error: "Phone number or email already exists" });
+      }
 
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      const admin = await prisma.user.create({
+        data: {
+          name: username,
+          email: email || null,
+          phoneNumber,
+          role: "ADMIN",
+          accounts: {
+            create: {
+              providerId: "credentials",
+              accountId: phoneNumber,
+              password: hashedPassword,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          role: true,
+          areaId: true,
+        },
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Admin created successfully",
+        user: admin,
+      });
     } catch (error: any) {
-      console.error("Login error:", error);
-
-      let statusCode = 400;
-      let errorMessage = "Invalid email or password";
-
-      // Extract better error message from Better Auth
-      if (error.message) {
-        const message = error.message.toLowerCase();
-
-        if (message.includes("user not found") || message.includes("invalid email")) {
-          errorMessage = "User not found";
-        } else if (message.includes("invalid password") || message.includes("incorrect password")) {
-          errorMessage = "Incorrect password";
-        } else if (message.includes("email not verified")) {
-          errorMessage = "Email not verified. Please check your inbox.";
-          statusCode = 403;
-        } else if (message.includes("too many requests")) {
-          errorMessage = "Too many attempts. Please try again later.";
-          statusCode = 429;
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
-      res.status(statusCode).json({
-        success: false,
-        error: errorMessage
-      });
+      return res.status(500).json({ success: false, error: error.message || "Internal server error" });
     }
   }
 );
@@ -136,7 +172,7 @@ usersRouter.post("/signup",
   locationMiddleware,
   validate(registerSchema),
   async (req: Request, res: Response) => {
-    const { username, email, password, phoneNumber } = req.body;
+    const { username, password, phoneNumber } = req.body;
     const locationdate = req.location;
 
     try {
@@ -150,62 +186,51 @@ usersRouter.post("/signup",
 
       // Check if email already exists
       const existingUser = await prisma.user.findUnique({
-        where: { email }
-      });
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          error: "Email already exists"
-        });
-      }
-
-      // Check if phone number already exists
-      const existingPhone = await prisma.user.findFirst({
         where: { phoneNumber }
       });
 
-      if (existingPhone) {
+      if (existingUser) {
         return res.status(400).json({
           success: false,
           error: "Phone number already exists"
         });
       }
 
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+
+
       // 1️⃣ Sign up with Better Auth
-      const session = await auth.api.signUpEmail({
-        body: {
+      const session = await prisma.user.create({
+        data: {
           name: username,
-          email,
-          password,
-          role: "USER"
-        },
-      });
-
-      // 2️⃣ Get user ID from session
-      const userId = session?.user?.id;
-
-      // 3️⃣ Update your Prisma user record with extra fields
-      if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            areaId: locationdate.id,
-            phoneNumber,
-          },
-        });
+          phoneNumber,
+          areaId: locationdate.id,
+          accounts: {
+            create: {
+              providerId: "credentials",
+              accountId: phoneNumber,
+              password: hashedPassword,
+            },
+          }
+        }
       }
+      );
+
+
+
 
       // 4️⃣ Return success response
       res.status(201).json({
         success: true,
         message: "Signup successful",
         user: {
-          ...session.user,
-          location: locationdate.name,
-          phoneNumber,
+          ...session,
         },
-        token: session.token,
+
+        // 
+        // token: session,
       });
 
     } catch (error: any) {
@@ -242,65 +267,62 @@ usersRouter.post("/signup",
 // Admin-only: create an admin user
 usersRouter.post(
   "/admin/create",
+  authMiddleware,
+  requireAdmin,
   validate(adminCreateSchema),
   async (req: Request, res: Response) => {
-    const { username, email, password, phoneNumber } = req.body;
+    const { username , password, phoneNumber } = req.body;
 
     try {
-      if (phoneNumber && !phoneNumber.startsWith('+251')) {
+      if (!phoneNumber || !phoneNumber.startsWith("+251")) {
         return res.status(400).json({
           success: false,
-          error: "Phone number must start with +251"
+          error: "Phone number must start with +251",
         });
       }
 
-      const existingUser = await prisma.user.findUnique({
-        where: { email }
+      const existingPhone = await prisma.user.findUnique({
+        where: { phoneNumber },
       });
 
-      if (existingUser) {
+      if (existingPhone) {
         return res.status(400).json({
           success: false,
-          error: "Email already exists"
+          error: "Phone number already exists",
         });
       }
 
-      if (phoneNumber) {
-        const existingPhone = await prisma.user.findFirst({
-          where: { phoneNumber }
-        });
 
-        if (existingPhone) {
-          return res.status(400).json({
-            success: false,
-            error: "Phone number already exists"
-          });
-        }
-      }
 
-      const session = await auth.api.signUpEmail({
-        body: {
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      const createdAdmin = await prisma.user.create({
+        data: {
           name: username,
-          email,
-          password,
-          role: "ADMIN"
+          phoneNumber,
+          role: "ADMIN",
+          accounts: {
+            create: {
+              providerId: "credentials",
+              accountId: phoneNumber,
+              password: hashedPassword,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          role: true,
+          createdAt: true,
         },
       });
-
-      const userId = session?.user?.id;
-
-      if (userId && phoneNumber) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { phoneNumber },
-        });
-      }
 
       return res.status(201).json({
         success: true,
         message: "Admin user created successfully",
-        user: session.user,
-        token: session.token,
+        user: createdAdmin,
       });
     } catch (error: any) {
       console.error("Admin create error:", error);
@@ -320,14 +342,15 @@ usersRouter.put("/user/update-status",
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user; // from auth middleware
-      if (!userId) {
+      const authUser = req.user;
+      if (!authUser) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
       const location = req.location;
 
       const { phoneNumber } = req.body;
+      const userId = authUser.id;
 
       // Update user
       const updatedUser = await prisma.user.update({
@@ -355,101 +378,17 @@ usersRouter.put("/user/update-status",
   });
 
 
-usersRouter.post("/forgot-password", async (req: Request, res: Response) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
-
-  try {
-    // ✅ Delete existing OTPs for this email + flow
-    await prisma.verification.deleteMany({
-      where: {
-        identifier: {
-          startsWith: `forget-password-otp-${email}`,
-
-        },
-      },
-    });
-
-    const response = await auth.api.forgetPasswordEmailOTP({
-      body: { email },
-    });
-
-    console.log("Reset code sent response:", response);
-
-    res.status(200).json({
-      message: "If the email exists, a reset code has been sent.",
-    });
-  } catch (error: any) {
-    console.error("Failed to send reset code:", error);
-    res.status(400).json({
-      message: "Failed to send reset code. Please try again later.",
-    });
-  }
-});
-
-
-usersRouter.post("/forgot-password/verify-otp", async (req: Request, res: Response) => {
-  const { email, otp } = req.body;
-
-  try {
-    await auth.api.checkVerificationOTP({
-      body: {
-        email,
-        otp,
-        type: "forget-password",
-      },
-    });
-
-    res.status(200).json({
-      valid: true,
-      message: "OTP verified. You may now reset your password.",
-    });
-  } catch (err: any) {
-    res.status(400).json({
-      valid: false,
-      error: err.message || "Invalid or expired OTP",
-    });
-  }
-});
-
-usersRouter.post(
-  "/forgot-password/reset",
-  validate(forgetpasswordSchema),
-  async (req: Request, res: Response) => {
-    const { email, otp, newPassword } = req.body;
-
-    try {
-      await auth.api.resetPasswordEmailOTP({
-        body: {
-          email,
-          otp,
-          password: newPassword,
-        },
-      });
-
-      res.status(200).json({
-        message: "Password reset successfully. You can now log in.",
-      });
-    } catch (err: any) {
-      res.status(400).json({
-        error: err.message || "Invalid OTP or expired session",
-      });
-    }
-  });
-
-
 // get user profile
 usersRouter.get("/profile",
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user; // from auth middleware
-      if (!userId) {
+      const authUser = req.user;
+      if (!authUser) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+      const userId = authUser.id;
+
       const user = await prisma.user.findUnique({
         where: { id: userId },
         include: {
@@ -480,26 +419,18 @@ usersRouter.put("/user/update-profile",
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user; // from auth middleware
-      if (!userId) {
+      const authUser = req.user;
+      if (!authUser) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
       const location = req.location;
 
       const { name, phoneNumber } = req.body;
+      const userId = authUser.id;
 
 
       console.log("Incoming body:", req.body);
-
-
-      await auth.api.updateUser({
-        headers: fromNodeHeaders(req.headers),
-        body: {
-          name: name,
-        },
-      });
-
       // Update user
       const updatedUser = await prisma.user.update({
         where: { id: userId },
@@ -552,7 +483,7 @@ usersRouter.get("/admin/users", requireAdmin, async (req: Request, res: Response
       const totalSpent = await prisma.order.aggregate({
         where: {
           userId: user.id,
-          status: {in : ["COMPLETED", "TO_BE_DELIVERED" ]},
+          status: { in: ["COMPLETED", "TO_BE_DELIVERED"] },
 
         },
         _sum: {
