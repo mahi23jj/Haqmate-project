@@ -20,7 +20,7 @@ router.post("/intents", authMiddleware,
 async (req, res, next) => {
     try {
         const { orderId, currency, idempotencyKey, metadata } = req.body;
-        const buyerId = req.user;
+        const buyerId = req.user?.id;
         if (!buyerId) {
             return res.status(401).json({ error: "User not authenticated" });
         }
@@ -47,7 +47,7 @@ router.get("/intents/:id", authMiddleware,
 async (req, res, next) => {
     try {
         const { id } = req.params;
-        const buyerId = req.user;
+        const buyerId = req.user?.id;
         if (!id) {
             return res.status(400).json({ error: "Payment intent id is required" });
         }

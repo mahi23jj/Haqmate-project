@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { Resend } from "resend";
@@ -126,7 +126,7 @@ const sendForgotPasswordOtp = async (email: string, otp: string) => {
     });
 };
 
-authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response) => {
+authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response , next: NextFunction) => {
     const { username, phoneNumber, password } = req.body;
     const locationdate = req.location;
 
@@ -172,12 +172,12 @@ authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async
             expiresIn: "7d",
             user: createdUser,
         });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Internal server error" });
+    } catch (error) {
+        next(error);
     }
 });
 
-authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response) => {
+authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response , next: NextFunction) => {
     const { username, phoneNumber, password } = req.body;
     const locationdate = req.location;
 
@@ -224,12 +224,12 @@ authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema),
             expiresIn: "7d",
             user: createdUser,
         });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Internal server error" });
+    } catch (error) {
+        next(error);
     }
 });
 
-authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: Response) => {
+authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: Response  , next: NextFunction) => {
     const { phoneNumber, password } = req.body;
 
     try {
@@ -263,12 +263,12 @@ authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: R
             expiresIn: "7d",
             user: account.user,
         });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Internal server error" });
+    } catch (error) {
+        next(error);
     }
 });
 
-authRouter.post("/admin/login", validate(authLoginSchema), async (req: Request, res: Response) => {
+authRouter.post("/admin/login", validate(authLoginSchema), async (req: Request, res: Response, next: NextFunction) => {
     const { phoneNumber, password } = req.body;
 
     try {
@@ -303,15 +303,15 @@ authRouter.post("/admin/login", validate(authLoginSchema), async (req: Request, 
             expiresIn: "7d",
             user: account.user,
         });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Internal server error" });
+    } catch (error) {
+        next(error);
     }
 });
 
 authRouter.post(
     "/request-forgot-password",
     validate(requestForgotPasswordSchema),
-    async (req: Request, res: Response) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         const { phoneNumber, email, type } = req.body;
 
         if (type !== "forgot-password") {
@@ -366,13 +366,13 @@ authRouter.post(
                 message: "OTP sent successfully",
                 expiresInSeconds: OTP_EXPIRY_SECONDS,
             });
-        } catch (error: any) {
-            return res.status(500).json({ success: false, error: error.message || "Failed to send OTP" });
+        } catch (error) {
+            next(error);
         }
     }
 );
 
-authRouter.post("/verify-otp", validate(verifyOtpSchema), async (req: Request, res: Response) => {
+authRouter.post("/verify-otp", validate(verifyOtpSchema), async (req: Request, res: Response, next: NextFunction) => {
     const { phoneNumber, email, otp, type } = req.body;
 
     if (type !== "forgot-password") {
@@ -398,12 +398,12 @@ authRouter.post("/verify-otp", validate(verifyOtpSchema), async (req: Request, r
         }
 
         return res.status(200).json({ success: true, message: "OTP verified" });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Failed to verify OTP" });
+    } catch (error) {
+        next(error);
     }
 });
 
-authRouter.post("/reset-password", validate(resetPasswordSchema), async (req: Request, res: Response) => {
+authRouter.post("/reset-password", validate(resetPasswordSchema), async (req: Request, res: Response, next: NextFunction) => {
     const { phoneNumber, email, otp, newPassword, type } = req.body;
 
     if (type !== "forgot-password") {
@@ -456,8 +456,8 @@ authRouter.post("/reset-password", validate(resetPasswordSchema), async (req: Re
             success: true,
             message: "Password reset successfully",
         });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, error: error.message || "Failed to reset password" });
+    } catch (error) {
+        next(error);
     }
 });
 

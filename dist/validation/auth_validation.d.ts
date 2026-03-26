@@ -1,6 +1,6 @@
 import { z } from "zod";
 export declare const loginSchema: z.ZodObject<{
-    email: z.ZodEmail;
+    phoneNumber: z.ZodString;
     password: z.ZodString;
     rememberMe: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
@@ -10,7 +10,6 @@ export declare const forgetpasswordSchema: z.ZodObject<{
     otp: z.ZodString;
 }, z.core.$strip>;
 export declare const registerSchema: z.ZodObject<{
-    email: z.ZodEmail;
     password: z.ZodString;
     username: z.ZodString;
     phoneNumber: z.ZodString;

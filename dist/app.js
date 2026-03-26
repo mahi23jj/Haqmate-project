@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from "cors";
-import { toNodeHandler } from 'better-auth/node';
-import { auth } from './lib/auth.js';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { UserRouter } from './router/user_router.js';
+import { authRouter } from './router/authrouter.js';
 import { config } from './config.js';
 import { productRouter } from './router/productrouter.js';
 import { cartRouter } from './router/cartrouter.js';
@@ -50,8 +49,8 @@ app.use(express.json());
 // Example route (protected demonstration done via authClient or session logic)
 app.get('/health', (req, res) => res.json({ ok: true }));
 // Register error handler after routes for proper propagation
-// Auth routes with better-auth
-// app.all("/api/auth/*", toNodeHandler(auth));
+// Custom authentication routes
+app.use('/auth', authRouter);
 app.use('/api', UserRouter);
 app.use('/api', productRouter);
 app.use('/api/cart', cartRouter);
@@ -80,8 +79,6 @@ app.post("/create/order", async (req, res) => {
 // app.post("/create/mandetOrder", function (req, res) {
 //   telebirr.createMandetOrder(req, res);
 // });
-// parse JSON for your own routes (after auth)
-app.use(express.json());
 // General error handler for other routes
 app.use((err, _req, res, _next) => {
     // eslint-disable-next-line no-console

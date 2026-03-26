@@ -4,10 +4,11 @@ export declare class mannualpaymentServiceImpl {
     orderServiceImpl: OrderServiceImpl;
     submitPaymentScreenshot(orderId: string, file: MulterFile): Promise<{
         id: string;
+        areaId: string;
+        phoneNumber: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        phoneNumber: string;
         merchOrderId: string;
         idempotencyKey: string;
         status: import("@prisma/client").$Enums.OrderStatus;
@@ -18,7 +19,6 @@ export declare class mannualpaymentServiceImpl {
         paymentMethod: string;
         paymentProofUrl: string | null;
         paymentDeclineReason: string | null;
-        areaId: string;
         totalDeliveryFee: number;
         extraDeliveryFee: number;
         extraDistanceLevel: import("@prisma/client").$Enums.ExtraDistanceLevel | null;
@@ -29,10 +29,11 @@ export declare class mannualpaymentServiceImpl {
     }>;
     approvePayment(orderId: string): Promise<{
         id: string;
+        areaId: string;
+        phoneNumber: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        phoneNumber: string;
         merchOrderId: string;
         idempotencyKey: string;
         status: import("@prisma/client").$Enums.OrderStatus;
@@ -43,7 +44,6 @@ export declare class mannualpaymentServiceImpl {
         paymentMethod: string;
         paymentProofUrl: string | null;
         paymentDeclineReason: string | null;
-        areaId: string;
         totalDeliveryFee: number;
         extraDeliveryFee: number;
         extraDistanceLevel: import("@prisma/client").$Enums.ExtraDistanceLevel | null;
@@ -54,10 +54,11 @@ export declare class mannualpaymentServiceImpl {
     }>;
     rejectPayment(orderId: string, reason: string): Promise<{
         id: string;
+        areaId: string;
+        phoneNumber: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        phoneNumber: string;
         merchOrderId: string;
         idempotencyKey: string;
         status: import("@prisma/client").$Enums.OrderStatus;
@@ -68,7 +69,6 @@ export declare class mannualpaymentServiceImpl {
         paymentMethod: string;
         paymentProofUrl: string | null;
         paymentDeclineReason: string | null;
-        areaId: string;
         totalDeliveryFee: number;
         extraDeliveryFee: number;
         extraDistanceLevel: import("@prisma/client").$Enums.ExtraDistanceLevel | null;
@@ -79,10 +79,11 @@ export declare class mannualpaymentServiceImpl {
     }>;
     scheduleDelivery(orderId: string, deliveryDate: string | Date): Promise<{
         id: string;
+        areaId: string;
+        phoneNumber: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        phoneNumber: string;
         merchOrderId: string;
         idempotencyKey: string;
         status: import("@prisma/client").$Enums.OrderStatus;
@@ -93,7 +94,6 @@ export declare class mannualpaymentServiceImpl {
         paymentMethod: string;
         paymentProofUrl: string | null;
         paymentDeclineReason: string | null;
-        areaId: string;
         totalDeliveryFee: number;
         extraDeliveryFee: number;
         extraDistanceLevel: import("@prisma/client").$Enums.ExtraDistanceLevel | null;

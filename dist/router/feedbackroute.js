@@ -10,7 +10,7 @@ const Feedbacks = new FeedbackServiceImpl();
 router.post("/", productMiddleware, validate(reviewSchema), // <== validate order before creating feedback
 async (req, res) => {
     try {
-        const userId = req.user;
+        const userId = req.user?.id;
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }

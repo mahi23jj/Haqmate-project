@@ -15,7 +15,7 @@ router.use(authMiddleware);
 // ----------------------------------------------------
 router.get('/', async (req, res, next) => {
     try {
-        const userid = req.user;
+        const userid = req.user?.id;
         const statusParam = req.query.status;
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
@@ -70,7 +70,7 @@ router.post('/multi-create', locationMiddleware,
 // validate(createMultiorderSchema),
 async (req, res, next) => {
     try {
-        const userId = req.user;
+        const userId = req.user?.id;
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }

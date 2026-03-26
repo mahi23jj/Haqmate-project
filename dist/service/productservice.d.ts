@@ -48,9 +48,9 @@ export declare class ProductServiceImpl implements ProductService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            message: string | null;
-            rating: number;
             productid: string;
+            rating: number;
+            message: string | null;
             submittedAt: Date;
         }[];
         averageRating: number | null;
@@ -74,59 +74,59 @@ export declare class ProductServiceImpl implements ProductService {
     }>;
     updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): Promise<{
         teffType: {
-            id: string;
             name: string;
+            id: string;
         };
         quality: {
-            id: string;
             name: string;
+            id: string;
         } | null;
         images: {
-            url: string;
             id: string;
             productId: string;
+            url: string;
         }[];
     } & {
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        rating: number | null;
         description: string | null;
         pricePerKg: number;
         teffTypeId: string;
         qualityId: string | null;
         discount: number | null;
         inStock: boolean;
-        rating: number | null;
         totalRating: number;
         orderCount: number;
     }>;
     createProduct(data: CreateProductInput, files?: Express.Multer.File[]): Promise<{
         teffType: {
-            id: string;
             name: string;
+            id: string;
         };
         quality: {
-            id: string;
             name: string;
+            id: string;
         } | null;
         images: {
-            url: string;
             id: string;
             productId: string;
+            url: string;
         }[];
     } & {
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        rating: number | null;
         description: string | null;
         pricePerKg: number;
         teffTypeId: string;
         qualityId: string | null;
         discount: number | null;
         inStock: boolean;
-        rating: number | null;
         totalRating: number;
         orderCount: number;
     }>;

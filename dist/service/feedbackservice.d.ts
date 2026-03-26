@@ -35,9 +35,9 @@ export declare class FeedbackServiceImpl implements FeedbackService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            message: string | null;
-            rating: number;
             productid: string;
+            rating: number;
+            message: string | null;
             submittedAt: Date;
         }[];
         averageRating: number | null;

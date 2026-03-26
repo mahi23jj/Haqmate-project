@@ -29,30 +29,30 @@ export declare class ProductServiceImpl implements ProductService {
         images?: string[];
     }): Promise<{
         teffType: {
-            id: string;
             name: string;
+            id: string;
         };
         quality: {
-            id: string;
             name: string;
+            id: string;
         } | null;
         images: {
-            url: string;
             id: string;
             productId: string;
+            url: string;
         }[];
     } & {
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
+        rating: number | null;
         description: string | null;
         pricePerKg: number;
         teffTypeId: string;
         qualityId: string | null;
         discount: number | null;
         inStock: boolean;
-        rating: number | null;
         totalRating: number;
         orderCount: number;
     }>;

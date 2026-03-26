@@ -116,7 +116,7 @@ function createAuthRequestObject(appToken) {
 // ---------------------------
 export const createOrder = async (req, res) => {
     try {
-        const userId = req.user;
+        const userId = req.user?.id;
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }
