@@ -13,48 +13,48 @@ const router = Router();
 
 const Delivery = new DeliveryServiceImpl();
 
-// 📌 Create location
-router.post("/location", async (req: Request, res: Response) => {
-  const { location, km } = req.body;
+// // 📌 Create location
+// router.post("/location", async (req: Request, res: Response) => {
+//   const { location, km } = req.body;
 
-  try {
-    const result = await Delivery.createlocation(location, km);
-    res.status(201).json({ status: "success", data: result });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
+//   try {
+//     const result = await Delivery.createlocation(location, km);
+//     res.status(201).json({ status: "success", data: result });
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
 
-// 📌 Get all locations
-router.get("/location", async (req: Request, res: Response) => {
-  const query = (req.query.query as string) ?? "";  // safe
-  const normalizedQuery = query.toLowerCase();      // safe
-  const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
-  const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
+// // 📌 Get all locations
+// router.get("/location", async (req: Request, res: Response) => {
+//   const query = (req.query.query as string) ?? "";  // safe
+//   const normalizedQuery = query.toLowerCase();      // safe
+//   const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+//   const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 20, 1), 100);
 
-  try {
-    const locations = await Delivery.getLocations(normalizedQuery, page, limit);
+//   try {
+//     const locations = await Delivery.getLocations(normalizedQuery, page, limit);
 
-    return res.status(200).json({
-      status: "success",
-      data: locations.items,
-      pagination: {
-        page,
-        limit,
-        total: locations.total,
-        totalPages: Math.ceil(locations.total / limit),
-      },
-    });
-  } catch (error: any) {
-    return res.status(500).json({
-      status: "error",
-      error: error.message || "Error fetching locations",
-    });
-  }
-});
+//     return res.status(200).json({
+//       status: "success",
+//       data: locations.items,
+//       pagination: {
+//         page,
+//         limit,
+//         total: locations.total,
+//         totalPages: Math.ceil(locations.total / limit),
+//       },
+//     });
+//   } catch (error: any) {
+//     return res.status(500).json({
+//       status: "error",
+//       error: error.message || "Error fetching locations",
+//     });
+//   }
+// });
 
 
-router.post("/deliverycharge",requireAdmin ,async (req: Request, res: Response) => {
+router.post("/deliverycharge", requireAdmin, async (req: Request, res: Response) => {
   const { fee } = req.body;
 
   try {
@@ -108,15 +108,15 @@ router.get("/deliverycharge", async (req: Request, res: Response) => {
 // });
 
 // 📌 Calculate Delivery Charge
-router.post("/charge", async (req: Request, res: Response) => {
-  const { location, extraDistance } = req.body;
+// router.post("/charge", async (req: Request, res: Response) => {
+//   const { location, extraDistance } = req.body;
 
-  try {
-    const charge = await Delivery.deliverycharge(location, extraDistance);
-    res.status(200).json({ status: "success", data: charge });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
+//   try {
+//     const charge = await Delivery.deliverycharge(location, extraDistance);
+//     res.status(200).json({ status: "success", data: charge });
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
 
 export { router as DeliveryRouter };

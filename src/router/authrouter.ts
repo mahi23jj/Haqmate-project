@@ -14,7 +14,7 @@ import {
 } from "../validation/custom_auth_validation.js";
 import { config } from "../config.js";
 import { CartServiceImpl } from "../service/cartservice.js";
-import { locationMiddleware } from "../middleware/ordermiddleware.js";
+// import { locationMiddleware } from "../middleware/ordermiddleware.js";
 
 const authRouter = Router();
 const resend = new Resend(config.RESEND_API_KEY);
@@ -126,8 +126,8 @@ const sendForgotPasswordOtp = async (email: string, otp: string) => {
     });
 };
 
-authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response , next: NextFunction) => {
-    const { username, phoneNumber, password } = req.body;
+authRouter.post("/signup", validate(authSignupSchema), async (req: Request, res: Response, next: NextFunction) => {
+    const { username, phoneNumber, password, subcity, Adress } = req.body;
     const locationdate = req.location;
 
     try {
@@ -145,7 +145,8 @@ authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async
             data: {
                 name: username,
                 phoneNumber,
-                areaId: locationdate ? locationdate.id : null,
+                subcity,
+                Adress,
                 accounts: {
                     create: {
                         providerId: "credentials",
@@ -177,9 +178,8 @@ authRouter.post("/signup", locationMiddleware, validate(authSignupSchema), async
     }
 });
 
-authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema), async (req: Request, res: Response , next: NextFunction) => {
+authRouter.post("/admin/signup", async (req: Request, res: Response, next: NextFunction) => {
     const { username, phoneNumber, password } = req.body;
-    const locationdate = req.location;
 
     try {
         const existingUser = await prisma.user.findUnique({
@@ -196,7 +196,6 @@ authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema),
             data: {
                 name: username,
                 phoneNumber,
-                areaId: locationdate ? locationdate.id : null,
                 role: "ADMIN",
                 accounts: {
                     create: {
@@ -229,7 +228,7 @@ authRouter.post("/admin/signup", locationMiddleware, validate(authSignupSchema),
     }
 });
 
-authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: Response  , next: NextFunction) => {
+authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: Response, next: NextFunction) => {
     const { phoneNumber, password } = req.body;
 
     try {
@@ -237,7 +236,7 @@ authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: R
             where: { providerId: "credentials", accountId: phoneNumber },
             include: {
                 user: {
-                    select: { id: true, name: true, phoneNumber: true, role: true, areaId: true },
+                    select: { id: true, name: true, phoneNumber: true, role: true },
                 },
             },
         });
@@ -276,7 +275,7 @@ authRouter.post("/admin/login", validate(authLoginSchema), async (req: Request, 
             where: { providerId: "credentials", accountId: phoneNumber },
             include: {
                 user: {
-                    select: { id: true, name: true, phoneNumber: true, role: true, areaId: true },
+                    select: { id: true, name: true, phoneNumber: true, role: true },
                 },
             },
         });

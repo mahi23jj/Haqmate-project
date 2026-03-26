@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { OrderServiceImpl } from '../service/orderservice.js';
 import { authMiddleware, requireAdmin } from '../middleware/authmiddleware.js';
-import { locationMiddleware, orderMiddleware } from '../middleware/ordermiddleware.js';
+import { orderMiddleware } from '../middleware/ordermiddleware.js';
 import { validate } from '../middleware/validate.js';
 import { createMultiorderSchema } from '../validation/order_validation.js';
 import { OrderStatus, RefundStatus } from '@prisma/client';

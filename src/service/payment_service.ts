@@ -67,7 +67,6 @@ export class paymentServiceImpl implements paymentService {
         {
             userId,
             products,
-            locationId,
             phoneNumber,
             orderReceived,
             paymentMethod,
@@ -76,7 +75,7 @@ export class paymentServiceImpl implements paymentService {
         }: {
             userId: string;
             products: OrderItemInput[];
-            locationId: string;  // IMPORTANT: this is areaId
+
             phoneNumber: string;
             orderReceived: string;
             paymentMethod: string;
@@ -85,7 +84,9 @@ export class paymentServiceImpl implements paymentService {
 
         }) {
 
-        const value = new OrderServiceImpl();
+        const deliveryService = new DeliveryServiceImpl();
+
+        const value = new OrderServiceImpl(deliveryService);
 
         const chapapayment = new ChapaIntegration();
 
@@ -95,7 +96,6 @@ export class paymentServiceImpl implements paymentService {
             {
                 userId,
                 products,
-                locationId,
                 phoneNumber,
                 orderReceived,
                 paymentMethod,

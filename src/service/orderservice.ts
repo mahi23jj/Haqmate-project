@@ -362,7 +362,6 @@ export interface OrderResponse {
     userId: string;
     merchOrderId: string;
     phoneNumber: string;
-    location: string;
     totalAmount: number;
     idempotencyKey: string;
     orderrecived: string;
@@ -405,6 +404,22 @@ export const ORDER_TRACKING_STEPS = [
 
 
 export class OrderServiceImpl {
+
+    private deliveryService: DeliveryServiceImpl;
+
+    constructor(deliveryService: DeliveryServiceImpl) {
+        this.deliveryService = deliveryService;
+    }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -559,7 +574,7 @@ export class OrderServiceImpl {
                     orderBy: { createdAt: 'asc' },
                     select: { type: true, title: true, timestamp: true }
                 },
-                area: { select: { name: true } }
+
             }
         });
 
@@ -570,7 +585,6 @@ export class OrderServiceImpl {
             id: order.id,
             userId: order.userId,
             phoneNumber: order.phoneNumber,
-            location: order.area?.name ?? '',
             totalAmount: order.totalAmount,
             deliverystatus: order.deliveryStatus,
             idempotencyKey: order.idempotencyKey,
@@ -642,7 +656,7 @@ export class OrderServiceImpl {
                         }
                     }
                 },
-                area: { select: { name: true } }
+
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -652,7 +666,6 @@ export class OrderServiceImpl {
             userId: o.userId,
             userName: o.user.name,
             phoneNumber: o.phoneNumber,
-            location: o.area?.name,
             totalAmount: o.totalAmount,
             idempotencyKey: o.idempotencyKey,
             paymentstatus: o.paymentStatus,
@@ -693,7 +706,6 @@ export class OrderServiceImpl {
     async createMultiOrder({
         userId,
         products,
-        locationId,      // maps to areaId
         phoneNumber,
         orderReceived,   // from request, string 'Delivery' | 'Pickup'
         paymentMethod,
@@ -702,7 +714,6 @@ export class OrderServiceImpl {
     }: {
         userId: string;
         products: OrderItemInput[];
-        locationId: string;
         phoneNumber: string;
         orderReceived: string;
         paymentMethod: string;
@@ -733,15 +744,19 @@ export class OrderServiceImpl {
         }
 
 
-        const [deliveryInfo, dbProducts] = await Promise.all([
-            deliveryService.deliverycharge(locationId),
-            getProductPrices(productIds)
-        ]);
+        /*    const [deliveryInfo, dbProducts] = await Promise.all([
+               deliveryService.deliverycharge(locationId),
+               getProductPrices(productIds)
+           ]);  */
+        let dbProduct = await getProductPrices(productIds);
 
-        console.log('products', dbProducts);
 
-        const productMap = new Map(dbProducts.map(p => [p.id, p]));
-        let total = deliveryInfo.totalFee;
+        console.log('products', dbProduct);
+
+        const productMap = new Map(dbProduct.map(p => [p.id, p]));
+
+        let deliveryfee = await deliveryService.getdeliveryperkg();
+        let total = deliveryfee;
 
         const orderItemsData: {
             productId: string;
@@ -756,13 +771,13 @@ export class OrderServiceImpl {
 
             const qty = item.quantity ?? 1;
             const price = prod.pricePerKg * qty * item.packagingsize;
-            total += price; // note: total += in loop might need to be handled carefully for concurrency
+            total += Number(price); // Ensure price is a number
 
             orderItemsData.push({
                 productId: prod.id,
                 quantity: qty,
                 packaging: item.packagingsize,
-                price,
+                price: Number(price),
             });
 
             // return the update promise
@@ -803,12 +818,11 @@ export class OrderServiceImpl {
             const createdOrder = await tx.order.create({
                 data: {
                     user: { connect: { id: userId } },
-                    area: { connect: { id: locationId } },
                     phoneNumber,
                     // areaId: locationId,
                     orderrecived: orderReceived,      // must match schema field name
                     paymentMethod,
-                    totalDeliveryFee: deliveryInfo.totalFee,
+                    totalDeliveryFee: deliveryfee, // for now we can set delivery fee same as total, but ideally it should be calculated separately
                     extraDistanceLevel: extraDistance ?? null,
                     totalAmount: total,
                     merchOrderId: 'MORD' + Date.now(),

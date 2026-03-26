@@ -1,7 +1,7 @@
 import { Router, request } from "express";
 import { OrderServiceImpl } from "../service/orderservice.js";
 import { authMiddleware } from "../middleware/authmiddleware.js";
-import { locationMiddleware, orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
+import { orderMiddleware, productMiddleware } from "../middleware/ordermiddleware.js";
 import type { Request, Response, NextFunction } from "express";
 import { createMultiorderSchema } from "../validation/order_validation.js";
 import { validate } from "../middleware/validate.js";
@@ -23,7 +23,6 @@ const pay = new paymentServiceImpl();
 
 router.post(
     "/",
-    locationMiddleware,
     validate(createMultiorderSchema),
     async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -57,7 +56,6 @@ router.post(
                 {
                     userId,
                     products,
-                    locationId: location.id,
                     phoneNumber,
                     orderReceived: orderRecived,
                     paymentMethod,
@@ -100,7 +98,7 @@ router.post("/orders/:orderId/refund", async (req: Request, res: Response, next:
 
     }
 
-    
+
     const refund = await prisma.refundRequest.create({
         data: {
             orderId,
@@ -115,7 +113,7 @@ router.post("/orders/:orderId/refund", async (req: Request, res: Response, next:
 
     await prisma.order.update({
         where: { id: orderId },
-        data: { Refundstatus: RefundStatus.PENDING, paymentStatus: PaymentStatus.REFUNDED},
+        data: { Refundstatus: RefundStatus.PENDING, paymentStatus: PaymentStatus.REFUNDED },
     });
 
 

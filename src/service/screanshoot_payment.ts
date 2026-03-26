@@ -107,12 +107,15 @@ import { cloudinary } from '../config.js';
 
 import { prisma } from '../prisma.js';
 import { OrderServiceImpl } from './orderservice.js';
+import { DeliveryServiceImpl } from './delivery.js';
 
 type MulterFile = Express.Multer.File;
 
 export class mannualpaymentServiceImpl {
 
-  orderServiceImpl = new OrderServiceImpl();
+  deliveryService = new DeliveryServiceImpl();
+
+  orderServiceImpl = new OrderServiceImpl(this.deliveryService);
 
   // --------------------------------
   // Submit payment screenshot
@@ -208,7 +211,7 @@ export class mannualpaymentServiceImpl {
     });
   }
 
-  async rejectPayment(orderId: string , reason: string) {
+  async rejectPayment(orderId: string, reason: string) {
     if (!orderId) {
       throw new ValidationError('Order ID is required');
     }

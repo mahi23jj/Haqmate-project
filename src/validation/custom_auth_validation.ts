@@ -7,6 +7,10 @@ const phoneRegex = /^\+251\d{9}$/;
 const passwordRegex = /^.{6,}$/;
 
 export const authSignupSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, { message: "Username must be at least 3 characters" }),
   phoneNumber: z
     .string()
     .regex(phoneRegex, { message: "Phone number must be a valid Ethiopian number starting with +251" }),
@@ -16,6 +20,8 @@ export const authSignupSchema = z.object({
       message:
         "Password must be 6+ characters",
     }),
+  subcity: z.string().optional(),
+  Adress: z.string().optional(),
 });
 
 export const authLoginSchema = z.object({

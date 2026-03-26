@@ -22,24 +22,24 @@ datasource db {
 model User {
   id            String  @id @default(uuid())
   name          String
-  email         String?  
+  email         String?
   emailVerified Boolean @default(false)
   image         String?
 
-  areaId      String?
-  phoneNumber String    @unique
+  subcity Subcity?
+  Adress  String?
+
+  phoneNumber String @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  area area? @relation(fields: [areaId], references: [id])
 
   sessions      Session[]
   accounts      Account[]
   cart          Cart[]
   order         Order[]
   RefundRequest RefundRequest[]
-  role           Role            @default(USER)
+  role          Role            @default(USER)
 
   // feedback_request feedback_request[]
   feedback       feedback[]
@@ -139,12 +139,11 @@ model TeffProduct {
   feedback    feedback[]
   discount    Float? // discount percentage
   inStock     Boolean      @default(true)
-  rating      Float?        @default(0)
-  totalRating  Int          @default(0)
+  rating      Float?       @default(0)
+  totalRating Int          @default(0)
   orderCount  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-
 
   @@index([inStock])
 }
@@ -190,9 +189,6 @@ model Order {
   paymentMethod        String // chapa | telebirr | screenshot
   paymentProofUrl      String? // screenshot image
   paymentDeclineReason String?
-
-  areaId String
-  area   area   @relation(fields: [areaId], references: [id])
 
   totalDeliveryFee   Int
   extraDeliveryFee   Int                 @default(0)
@@ -319,14 +315,14 @@ model RefundRequest {
 // }
 
 model feedback {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
   productid   String
   rating      Int
   message     String?
   submittedAt DateTime @default(now())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user              User                @relation(fields: [userId], references: [id])
   teffproduct       TeffProduct         @relation(fields: [productid], references: [id])
@@ -351,23 +347,25 @@ model FeedbackAnalytics {
   @@index([teffTypeId, qualityId, packagingId])
 }
 
-model area {
-  id        String   @id @default(uuid())
-  name      String
-  baseFee   Int
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
-  users     User[]
+enum Subcity {
+  AddisKetema
+  AkakiKality
+  Arada
+  Bole
+  Gullele
+  Kirkos
+  KolfeKeranio
+  Lideta
+  NifasSilkLafto
+  Yeka
 }
 
 model deliveryconfigration {
-  id             String   @id @default(uuid())
-  key            String   @unique
-  feePerKg       Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(uuid())
+  key       String   @unique
+  feePerKg  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AppSettings {

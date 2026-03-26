@@ -5,14 +5,17 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { OrderServiceImpl } from '../service/orderservice.js';
+import { DeliveryServiceImpl } from '../service/delivery.js';
 import { authMiddleware, requireAdmin } from '../middleware/authmiddleware.js';
-import { locationMiddleware, orderMiddleware } from '../middleware/ordermiddleware.js';
+import { orderMiddleware } from '../middleware/ordermiddleware.js';
 import { validate } from '../middleware/validate.js';
 import { createMultiorderSchema } from '../validation/order_validation.js';
 import { DeliveryStatus, OrderStatus, PaymentStatus } from '@prisma/client';
 
 const router = Router();
-const orders = new OrderServiceImpl();
+
+const deliveryService = new DeliveryServiceImpl();
+const orders = new OrderServiceImpl(deliveryService);
 
 // 🔐 All order routes require auth
 router.use(authMiddleware);
@@ -87,7 +90,7 @@ router.get(
 // ----------------------------------------------------
 router.post(
   '/multi-create',
-  locationMiddleware,
+
   // validate(createMultiorderSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -96,7 +99,7 @@ router.post(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const location = req.location;
+
 
       const {
         products,
@@ -120,7 +123,6 @@ router.post(
 
       const newOrder = await orders.createMultiOrder({
         userId,
-        locationId: location.id,
         products,
         phoneNumber,
         orderReceived: orderReceived,
@@ -230,9 +232,9 @@ router.patch('/admin/orders/:id/status', requireAdmin, async (req: Request, res:
     let deliveryStatusEnum: DeliveryStatus | undefined;
     let deliveryDate: Date | null | undefined;
 
-    if(!id) {
+    if (!id) {
       return res.status(400).json({ error: 'Order ID is required' });
-      }
+    }
 
     if (paymentStatusParam) {
       if (!(paymentStatusParam.toUpperCase() in PaymentStatus)) {
@@ -266,7 +268,7 @@ router.patch('/admin/orders/:id/status', requireAdmin, async (req: Request, res:
     next(error);
   }
 });
-  
+
 
 
 

@@ -23,62 +23,7 @@ export interface DeliveryService {
 
 
 
-export class DeliveryServiceImpl implements DeliveryService {
-
-  // ✅ Create a new delivery location
-  async createlocation(location: string, km: number): Promise<any> {
-    try {
-      /*   const existing = await prisma.area.findFirst({
-          where: { name:location }
-        });
-  
-        if (existing) {
-          throw new Error("Location already exists");
-        } */
-
-      const basefee = km * 50;
-
-      const newLocation = await prisma.area.create({
-        data: {
-          name: location,
-          baseFee: basefee
-        }
-      });
-
-      return newLocation;
-
-    } catch (error) {
-      console.error("❌ Error creating location:", error);
-      throw new Error("Error creating location");
-    }
-  }
-
-  // ✅ Get all locations by quary
-  async getLocations(query: string, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
-    try {
-      const whereClause = {
-        name: {
-          contains: query,
-          mode: "insensitive" as const   // <-- Case-insensitive filtering
-        }
-      };
-
-      const [items, total] = await Promise.all([
-        prisma.area.findMany({
-          where: whereClause,
-          orderBy: { name: 'asc' },
-          take: limit,
-          skip: (page - 1) * limit,
-        }),
-        prisma.area.count({ where: whereClause }),
-      ]);
-
-      return { items, total };
-    } catch (error) {
-      console.error("❌ Error fetching locations:", error);
-      throw new Error("Error fetching locations");
-    }
-  }
+export class DeliveryServiceImpl {
 
   async createdeliveryperkg(fee: number): Promise<any> {
     try {
@@ -97,7 +42,7 @@ export class DeliveryServiceImpl implements DeliveryService {
   }
 
 
-  async getdeliveryperkg(): Promise<any> {
+  async getdeliveryperkg(): Promise<number> {
     try {
       const setting = await (prisma as any).deliveryconfigration.findUnique({
         where: { id: 'deliveryFeePerKg' },
@@ -107,116 +52,173 @@ export class DeliveryServiceImpl implements DeliveryService {
         throw new Error("Delivery fee per kg not set");
       }
 
-      return { feePerKg: setting.feePerKg };
+      return setting.feePerKg;
     } catch (error) {
       console.error("❌ Error fetching delivery fee per kg:", error);
       throw new Error("Error fetching delivery fee per kg");
     }
-  } 
-  // async getlocation(): Promise<any> {
+  }
+
+  // ✅ Create a new delivery location
+  // async createlocation(location: string, km: number): Promise<any> {
   //   try {
-  //     return await prisma.area.findMany();
+  //     /*   const existing = await prisma.area.findFirst({
+  //         where: { name:location }
+  //       });
+
+  //       if (existing) {
+  //         throw new Error("Location already exists");
+  //       } */
+
+  //     const basefee = km * 50;
+
+  //     const newLocation = await prisma.area.create({
+  //       data: {
+  //         name: location,
+  //         baseFee: basefee
+  //       }
+  //     });
+
+  //     return newLocation;
+
+  //   } catch (error) {
+  //     console.error("❌ Error creating location:", error);
+  //     throw new Error("Error creating location");
+  //   }
+  // }
+
+  // // ✅ Get all locations by quary
+  // async getLocations(query: string, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
+  //   try {
+  //     const whereClause = {
+  //       name: {
+  //         contains: query,
+  //         mode: "insensitive" as const   // <-- Case-insensitive filtering
+  //       }
+  //     };
+
+  //     const [items, total] = await Promise.all([
+  //       prisma.area.findMany({
+  //         where: whereClause,
+  //         orderBy: { name: 'asc' },
+  //         take: limit,
+  //         skip: (page - 1) * limit,
+  //       }),
+  //       prisma.area.count({ where: whereClause }),
+  //     ]);
+
+  //     return { items, total };
   //   } catch (error) {
   //     console.error("❌ Error fetching locations:", error);
   //     throw new Error("Error fetching locations");
   //   }
   // }
 
-  // ✅ Get one location by ID
-  async getlocationbyid(id: string): Promise<any> {
-    try {
-      const location = await prisma.area.findUnique({
-        where: { id }
-      });
 
-      if (!location) {
-        throw new Error("Location not found");
-      }
+  // // async getlocation(): Promise<any> {
+  // //   try {
+  // //     return await prisma.area.findMany();
+  // //   } catch (error) {
+  // //     console.error("❌ Error fetching locations:", error);
+  // //     throw new Error("Error fetching locations");
+  // //   }
+  // // }
 
-      return location;
+  // // ✅ Get one location by ID
+  // async getlocationbyid(id: string): Promise<any> {
+  //   try {
+  //     const location = await prisma.area.findUnique({
+  //       where: { id }
+  //     });
 
-    } catch (error) {
-      console.error("❌ Error fetching location by ID:", error);
-      throw new Error("Error fetching location");
-    }
-  }
+  //     if (!location) {
+  //       throw new Error("Location not found");
+  //     }
 
-  // ✅ Delete location
-  async deletelocation(id: string): Promise<any> {
-    try {
-      const deleted = await prisma.area.delete({
-        where: { id }
-      });
+  //     return location;
 
-      return deleted;
+  //   } catch (error) {
+  //     console.error("❌ Error fetching location by ID:", error);
+  //     throw new Error("Error fetching location");
+  //   }
+  // }
 
-    } catch (error) {
-      console.error("❌ Error deleting location:", error);
-      throw new Error("Error deleting location");
-    }
-  }
+  // // ✅ Delete location
+  // async deletelocation(id: string): Promise<any> {
+  //   try {
+  //     const deleted = await prisma.area.delete({
+  //       where: { id }
+  //     });
 
-  // ✅ Update location
-  async updatelocation(id: string, location: string, km: number): Promise<any> {
-    try {
+  //     return deleted;
+
+  //   } catch (error) {
+  //     console.error("❌ Error deleting location:", error);
+  //     throw new Error("Error deleting location");
+  //   }
+  // }
+
+  // // ✅ Update location
+  // async updatelocation(id: string, location: string, km: number): Promise<any> {
+  //   try {
 
 
-      const updated = await prisma.area.update({
-        where: { id },
-        data: { name: location, baseFee: km * 50 }
-      });
+  //     const updated = await prisma.area.update({
+  //       where: { id },
+  //       data: { name: location, baseFee: km * 50 }
+  //     });
 
-      return updated;
+  //     return updated;
 
-    } catch (error) {
-      console.error("❌ Error updating location:", error);
-      throw new Error("Error updating location");
-    }
-  }
+  //   } catch (error) {
+  //     console.error("❌ Error updating location:", error);
+  //     throw new Error("Error updating location");
+  //   }
+  // }
 
-  // ✅ Delivery charge calculation
-  // Main logic: baseFee + extraFee based on distance level
-  async deliverycharge(location: string, extra?: ExtraDistanceLevel): Promise<any> {
-    try {
-      const loc = await prisma.area.findUnique({
-        where: { id: location }
-      });
+  // // ✅ Delivery charge calculation
+  // // Main logic: baseFee + extraFee based on distance level
+  // async deliverycharge(location: string, extra?: ExtraDistanceLevel): Promise<any> {
+  //   try {
+  //     const loc = await prisma.area.findUnique({
+  //       where: { id: location }
+  //     });
 
-      if (!loc) {
-        throw new Error("Location not found");
-      }
+  //     if (!loc) {
+  //       throw new Error("Location not found");
+  //     }
 
-      let extraCharge = 0;
+  //     let extraCharge = 0;
 
-      switch (extra) {
-        case ExtraDistanceLevel.near:
-          extraCharge = 20;
-          break;
+  //     switch (extra) {
+  //       case ExtraDistanceLevel.near:
+  //         extraCharge = 20;
+  //         break;
 
-        case ExtraDistanceLevel.medium:
-          extraCharge = 40;
-          break;
+  //       case ExtraDistanceLevel.medium:
+  //         extraCharge = 40;
+  //         break;
 
-        case ExtraDistanceLevel.far:
-          extraCharge = 60;
-          break;
+  //       case ExtraDistanceLevel.far:
+  //         extraCharge = 60;
+  //         break;
 
-        default:
-          extraCharge = 0;
-      }
+  //       default:
+  //         extraCharge = 0;
+  //     }
 
-      const totalFee = loc.baseFee + extraCharge;
+  //     const totalFee = loc.baseFee + extraCharge;
 
-      return {
-        location: loc.name,
-        extraFee: extraCharge,
-        extraDistance: extra,
-        totalFee
-      };
+  //     return {
+  //       location: loc.name,
+  //       extraFee: extraCharge,
+  //       extraDistance: extra,
+  //       totalFee
+  //     };
 
-    } catch (error) {
-      console.error("❌ Error calculating delivery fee:", error);
-      throw new Error("Error calculating delivery fee");
-    }
-  }
+  //   } catch (error) {
+  //     console.error("❌ Error calculating delivery fee:", error);
+  //     throw new Error("Error calculating delivery fee");
+  //   }
+  // }
 }

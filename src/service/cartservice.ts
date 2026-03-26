@@ -319,7 +319,6 @@ export class CartServiceImpl implements CartService {
                 prisma.user.findUnique({
                     where: { id: userId },
                     select: {
-                        area: { select: { id: true, name: true, baseFee: true } },
                         phoneNumber: true,
                     },
                 }),
