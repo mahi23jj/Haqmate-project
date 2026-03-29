@@ -84,9 +84,9 @@ export class paymentServiceImpl implements paymentService {
 
         }) {
 
-        const deliveryService = new DeliveryServiceImpl();
+      
 
-        const value = new OrderServiceImpl(deliveryService);
+        const value = new OrderServiceImpl();
 
         const chapapayment = new ChapaIntegration();
 

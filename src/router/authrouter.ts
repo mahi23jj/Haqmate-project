@@ -128,7 +128,6 @@ const sendForgotPasswordOtp = async (email: string, otp: string) => {
 
 authRouter.post("/signup", validate(authSignupSchema), async (req: Request, res: Response, next: NextFunction) => {
     const { username, phoneNumber, password, subcity, Adress } = req.body;
-    const locationdate = req.location;
 
     try {
         const existingUser = await prisma.user.findUnique({

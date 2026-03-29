@@ -113,9 +113,9 @@ type MulterFile = Express.Multer.File;
 
 export class mannualpaymentServiceImpl {
 
-  deliveryService = new DeliveryServiceImpl();
 
-  orderServiceImpl = new OrderServiceImpl(this.deliveryService);
+
+  orderServiceImpl = new OrderServiceImpl();
 
   // --------------------------------
   // Submit payment screenshot

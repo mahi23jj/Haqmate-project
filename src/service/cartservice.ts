@@ -343,7 +343,7 @@ export class CartServiceImpl implements CartService {
                     item.product.discount ?? 0
                 );
 
-                deliveryfee += (delivery?.feePerKg ?? 0) * item.packaging * item.quantity; // 12 birr per kg
+                deliveryfee += (delivery?.feePerKg ?? 0);
 
                 subtotalPrice += itemTotal;
 
@@ -373,7 +373,7 @@ export class CartServiceImpl implements CartService {
             // const taxPrice = 0.15 * subtotalPrice;
             // const totalPrice = subtotalPrice + taxPrice;
 
-            let totalprice = subtotalPrice - deliveryfee;
+            let totalprice = subtotalPrice + deliveryfee;
 
             const cartObj = { cart: formattedCart, totalPrice: totalprice, deliveryFee: deliveryfee, subtotalPrice: subtotalPrice, ...userInfo };
 

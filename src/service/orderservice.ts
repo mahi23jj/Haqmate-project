@@ -404,25 +404,7 @@ export const ORDER_TRACKING_STEPS = [
 
 
 export class OrderServiceImpl {
-
-    private deliveryService: DeliveryServiceImpl;
-
-    constructor(deliveryService: DeliveryServiceImpl) {
-        this.deliveryService = deliveryService;
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     async getOrdersWithTracking(userId: any, status?: OrderStatus, page = 1, limit = 20): Promise<{ items: any[]; total: number }> {
         // Fetch directly from Prisma (cache removed)
         const whereClause = status ? { status } : {};
@@ -729,7 +711,12 @@ export class OrderServiceImpl {
         const existingOrder = await prisma.order.findUnique({ where: { idempotencyKey } });
         if (existingOrder) return { id: existingOrder.id, totalAmount: existingOrder.totalAmount };
 
-        const deliveryService = new DeliveryServiceImpl();
+        const deliveryService = await prisma.deliveryconfigration.findUnique({
+            where: { key: 'deliveryFeePerKg' },
+            select: { feePerKg: true },
+        });
+
+
         const productIds = products.map(p => p.productId);
 
         console.log("Fetching prices for products:", products);
@@ -755,7 +742,7 @@ export class OrderServiceImpl {
 
         const productMap = new Map(dbProduct.map(p => [p.id, p]));
 
-        let deliveryfee = await deliveryService.getdeliveryperkg();
+        let deliveryfee = deliveryService?.feePerKg || 0;
         let total = deliveryfee;
 
         const orderItemsData: {

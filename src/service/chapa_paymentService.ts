@@ -7,6 +7,7 @@ import { PrismaClient, OrderStatus, DeliveryStatus, PaymentStatus, TrackingType 
 import { NotFoundError } from '../utils/apperror.js';
 import type { Product } from './productservice.js';
 import { prisma } from '../prisma.js';
+import { DeliveryServiceImpl } from "./delivery.js";
 
 // ---------- Interfaces ----------
 export interface CreatePaymentIntentRequest {
@@ -346,6 +347,9 @@ export class ChapaIntegration implements PaymentProvider {
         where: { id: paymentIntent.orderId },
         data: { status: OrderStatus.TO_BE_DELIVERED, deliveryStatus: DeliveryStatus.NOT_SCHEDULED, paymentStatus: PaymentStatus.CONFIRMED, updatedAt: new Date() },
       });
+
+
+
 
       const value = new OrderServiceImpl();
 

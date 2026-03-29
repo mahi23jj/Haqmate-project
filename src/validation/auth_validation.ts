@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" }),
+    phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" }),
     // make password to have 1 number , 1 small later , 1 capital letter , 1 specila character at least and 8 characters
     password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/,
         { message: "Password must contain at least 1 number , 1 small later , 1 capital letter , 1 specila character at least and 8 characters" }
@@ -32,6 +32,10 @@ export const registerSchema = z.object({
     username: z.string().min(3, { message: "Username must be at least 3 characters" }),
 
     phoneNumber: z.string().min(9, { message: "Phone number must be at least 9 characters" }),
+
+    subcity: z.string().optional(),
+
+    location: z.string().optional(),
 })
 
 export const adminCreateSchema = z.object({
