@@ -14,8 +14,8 @@ import { DeliveryStatus, OrderStatus, PaymentStatus } from '@prisma/client';
 
 const router = Router();
 
-const deliveryService = new DeliveryServiceImpl();
-const orders = new OrderServiceImpl(deliveryService);
+
+const orders = new OrderServiceImpl();
 
 // 🔐 All order routes require auth
 router.use(authMiddleware);
