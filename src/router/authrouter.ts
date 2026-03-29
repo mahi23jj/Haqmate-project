@@ -159,6 +159,8 @@ authRouter.post("/signup", validate(authSignupSchema), async (req: Request, res:
                 name: true,
                 phoneNumber: true,
                 role: true,
+                subcity: true,
+                Adress: true,
             },
         });
 
@@ -235,7 +237,7 @@ authRouter.post("/login", validate(authLoginSchema), async (req: Request, res: R
             where: { providerId: "credentials", accountId: phoneNumber },
             include: {
                 user: {
-                    select: { id: true, name: true, phoneNumber: true, role: true },
+                    select: { id: true, name: true, phoneNumber: true, role: true , subcity: true, Adress: true},
                 },
             },
         });
