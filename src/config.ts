@@ -21,9 +21,9 @@ export const config = {
     .from(process.env.PRIVATE_KEY_BASE64!, 'base64')
     .toString('utf8'),
   GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
-  Redis_Host: process.env.redis_host || '',
-  Redis_Port: process.env.redis_port ? parseInt(process.env.redis_port) : 6379,
-  Redis_Password: process.env.redis_password || '',
+  // Redis_Host: process.env.redis_host || '',
+  // Redis_Port: process.env.redis_port ? parseInt(process.env.redis_port) : 6379,
+  // Redis_Password: process.env.redis_password || '',
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
