@@ -210,6 +210,7 @@ router.delete("/products/:id", requireAdmin, async (req: Request, res: Response,
 // post /products - Create a new product (example, not implemented in service)
 router.post(
   "/products",
+  authMiddleware,
   requireAdmin,
   uploadProductImages.array('images', 6),
   validate(createProductSchema),
