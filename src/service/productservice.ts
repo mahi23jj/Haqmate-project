@@ -268,7 +268,7 @@ export class ProductServiceImpl implements ProductService {
   async getProductById(
     id: string,
     userId: string,
-    role: 'ADMIN' | 'USER'
+    role: string | undefined
   ) {
     // const cacheKey = `product:${id}:${role}`;
     // const cached = await redisClient.get(cacheKey);

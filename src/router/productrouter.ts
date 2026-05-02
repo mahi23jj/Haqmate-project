@@ -83,7 +83,9 @@ router.get("/products/:id",
     try {
       const productId = req.params.id;
 
-      const userId = req.user?.id;
+      const user = req.user;
+
+      const userId = user?.id;
 
       if (typeof userId !== "string") {
         return res.status(401).json({ error: "Unauthorized" });
@@ -95,7 +97,7 @@ router.get("/products/:id",
 
 
 
-      const product = await products.getProductById(productId, userId, req.session.user.role);
+      const product = await products.getProductById(productId, userId, user?.role);
       if (product) {
         return res.status(201).json({
           status: "success",
